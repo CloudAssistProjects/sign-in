@@ -1,10 +1,11 @@
 window.cadets = [
-   // {
-   //     "CAPID": "123456",
-   //     "First": "John",
-   //     "Middle": "Michael",
-   //     "Last": "Doe",
-   // }
+    // You can enter data here in the following format to provide a friendly message for known members
+    // {
+    //     "CAPID": "123456",
+    //     "First": "John",
+    //     "Middle": "Michael",
+    //     "Last": "Doe",
+    // }
     // ...
 ];
 
@@ -14,7 +15,7 @@ if (!localStorage.getItem("data")) { // If there is no data in local storage, cr
 }
 function submit() {
 
-    var newdate=new Date().toLocaleDateString().split('T')[0]
+    var newdate = new Date().toLocaleDateString().split('T')[0]
     localStorage.setItem("lastScan", newdate);
 
     document.getElementById("done-text").innerText = "You have been checked in successfully." // Set the text to "You have been checked in successfully."
@@ -127,7 +128,7 @@ setInterval(function () {
         }
     }
 
-    var newdate=new Date().toLocaleDateString().split('T')[0]
+    var newdate = new Date().toLocaleDateString().split('T')[0]
 
     if (window.lastScan !== newdate) {
         clearData()
@@ -149,7 +150,7 @@ function data_export() { // Create a function to export the data
     });
 
     string = string.substring(0, string.length - 2); // remove trailing commas
-    var newdate=new Date().toLocaleDateString().split('T')[0]
+    var newdate = new Date().toLocaleDateString().split('T')[0]
     var data = string; // Set the data to the string
     var type = "text" // Set the type to text
     var filename = "Attendance_" + newdate + ".txt" // Set the filename to the date
@@ -177,6 +178,10 @@ function data_export() { // Create a function to export the data
     //     window.cleared = true; // Set the cleared state to true
     //     localStorage.setItem("data", btoa("[]")) // Set the data to an empty array
     // }
+    document.getElementById('option-file').innerHTML = 'File (Downloaded...)';
+    window.setTimeout(function () {
+        document.getElementById("option-file").innerHTML = 'File'
+    }, 1500);
 }
 
 function clipboard() {
@@ -359,18 +364,23 @@ if (!window.config.webhookUrl) {
 }
 window.makeWebhookRequest = function () {
     if (!window.config.webhookUrl) return;
-     let e = JSON.parse(atob(localStorage.getItem("data"))); // Get the data
-   
+    let e = JSON.parse(atob(localStorage.getItem("data"))); // Get the data
+
     var xhr = new XMLHttpRequest();
     xhr.open("POST", window.config.webhookUrl);
     xhr.setRequestHeader('Content-type', 'application/json');
-    var newdate=new Date().toLocaleDateString().split('T')[0]
+    var newdate = new Date().toLocaleDateString().split('T')[0]
     var params = {
         meeting_date: newdate,
         attendees: e,
     };
 
     xhr.send(JSON.stringify(params));
+
+    document.getElementById('option-webhook').innerHTML = 'Configure Webhook (Sending data to webhook...)';
+        window.setTimeout(function () {
+            document.getElementById("option-webhook").innerHTML = 'Configure Webhook'
+        }, 1500);
 }
 
 window.setWebhookUrl = function (url) {
@@ -379,7 +389,7 @@ window.setWebhookUrl = function (url) {
 }
 
 window.configureWebhook = function () {
-    var url = prompt("Enter the webhook URL" + (window.config.webhookUrl ? " (Current: " + window.config.webhookUrl.substring(0,25) + "...)" : ""));
+    var url = prompt("Enter the webhook URL" + (window.config.webhookUrl ? " (Current: " + window.config.webhookUrl.substring(0, 25) + "...)" : ""));
     if (url === "" || url) {
         window.setWebhookUrl(url);
     }

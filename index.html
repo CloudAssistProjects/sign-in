@@ -2,12 +2,6 @@
 <html lang="en">
 
 <head>
-    <script>
-        location = "nc300/"; //Temporary!! Remove this for production!!
-        // window.config = {
-        //     webhookUrl: "YOUR_HARDCODED_WEBHOOK_URL"
-        // };
-    </script>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -95,13 +89,13 @@
                                     <li class="cursor-default select-none px-4 py-2" id="option-clipboard" role="option"
                                         tabindex="-1" onclick="clipboard(); window.makeWebhookRequest();">Clipboard</li>
                                     <li onclick="data_export(); window.makeWebhookRequest();"
-                                        class="cursor-default select-none px-4 py-2" id="option-2" role="option"
+                                        class="cursor-default select-none px-4 py-2" id="option-file" role="option"
                                         tabindex="-1">File</li>
                                     <li onclick="clipboard() ; data_export(); window.makeWebhookRequest();"
                                         class="cursor-default select-none px-4 py-2" id="option-2" role="option"
                                         tabindex="-1">Both</li>
                                     <li onclick="configureWebhook()" class="cursor-default select-none px-4 py-2"
-                                        id="option-2" role="option" tabindex="-1">Configure Webhook</li>
+                                        id="option-webhook" role="option" tabindex="-1">Configure Webhook</li>
                                 </ul>
                             </li>
                             <li>
