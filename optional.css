@@ -1,0 +1,37 @@
+#options ul li:hover{
+    background:rgb(236, 236, 236);
+    cursor:pointer;
+}
+
+.scanner-cam {
+   margin-bottom:70px;
+   margin-right:10px;
+    width: 440px;
+    height: 280px;
+    position:fixed;
+    bottom:0;
+    right:0;
+    z-index:99;
+    transform: scale(-1, 1);
+
+  }
+
+  .scanner-cam *{
+    border-radius:17px;
+  }
+  
+  .scanner-cam--scanned {
+    border-color: green;
+  }
+
+/* For Firefox */
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+/* For Chrome, Safari, and Opera */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
