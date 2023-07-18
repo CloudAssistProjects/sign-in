@@ -205,13 +205,19 @@ function clipboard() {
     });
 }
 
-function clearData() {
+function clearDataWrapper() {
     var confirmClear = confirm("Are you sure you want to clear the data?");
-
     if (confirmClear) {
+        clearData()
+    }
+}
+
+
+function clearData() {
         window.cleared = true; // Set the cleared state to true
         window.backup = null; // Set the backup to null
-        localStorage.clear(); // Clear the local storage
+        localStorage.deleteItem("data");
+        localStorage.deleteItem("lastScan");
 
         if (localStorage.length == 0 && window.backup == null) {
             // If the local storage is empty and the backup is null
@@ -224,7 +230,6 @@ function clearData() {
         window.setTimeout(function () {
             document.getElementById("option-clear-data").innerHTML = 'Clear Data';
         }, 1500);
-    }
 }
 /* End Of Data Export */
 
