@@ -206,17 +206,25 @@ function clipboard() {
 }
 
 function clearData() {
-    window.cleared = true; // Set the cleared state to true
-    window.backup = null; // Set the backup to null
-    localStorage.clear() // Clear the local storage
-    if (localStorage.length == 0 && window.backup == null) { // If the local storage is empty and the backup is null
+    var confirmClear = confirm("Are you sure you want to clear the data?");
+
+    if (confirmClear) {
         window.cleared = true; // Set the cleared state to true
-        localStorage.setItem("data", btoa("[]")) // Set the data to an empty array
+        window.backup = null; // Set the backup to null
+        localStorage.clear(); // Clear the local storage
+
+        if (localStorage.length == 0 && window.backup == null) {
+            // If the local storage is empty and the backup is null
+            window.cleared = true; // Set the cleared state to true
+            localStorage.setItem("data", btoa("[]")); // Set the data to an empty array
+        }
+
+        document.getElementById('option-clear-data').innerHTML = 'Clear Data (Cleared...)';
+
+        window.setTimeout(function () {
+            document.getElementById("option-clear-data").innerHTML = 'Clear Data';
+        }, 1500);
     }
-    document.getElementById('option-clear-data').innerHTML = 'Clear Data (Cleared...)';
-    window.setTimeout(function () {
-        document.getElementById("option-clear-data").innerHTML = 'Clear Data'
-    }, 1500);
 }
 /* End Of Data Export */
 
@@ -378,19 +386,28 @@ window.makeWebhookRequest = function () {
     xhr.send(JSON.stringify(params));
 
     document.getElementById('option-webhook').innerHTML = 'Configure Webhook (Sending data to webhook...)';
-        window.setTimeout(function () {
-            document.getElementById("option-webhook").innerHTML = 'Configure Webhook'
-        }, 1500);
+    window.setTimeout(function () {
+        document.getElementById("option-webhook").innerHTML = 'Configure Webhook'
+    }, 1500);
 }
 
 window.setWebhookUrl = function (url) {
-    localStorage.setItem("webhookUrl", url);
+    // Save the current webhook URL to the backup
+    window.config.backupWebhookUrl = window.config.webhookUrl;
+    localStorage.setItem("backupwebhookUrl", window.config.backupWebhookUrl);
+
     window.config.webhookUrl = url;
+    localStorage.setItem("webhookUrl", window.config.webhookUrl);
 }
 
 window.configureWebhook = function () {
     var url = prompt("Enter the webhook URL" + (window.config.webhookUrl ? " (Current: " + window.config.webhookUrl.substring(0, 25) + "...)" : ""));
-    if (url === "" || url) {
+    if (url === "") {
+        var confirmClear = confirm("Are you sure you want to clear the webhook URL? Click 'Cancel' if you do not want to disable email export.");
+        if (confirmClear) {
+            window.setWebhookUrl(url);
+        }
+    } else if (url) {
         window.setWebhookUrl(url);
     }
 }
