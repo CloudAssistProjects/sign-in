@@ -16,6 +16,14 @@ if (!localStorage.getItem("data")) { // If there is no data in local storage, cr
 
 function today() { return new Date().toLocaleDateString().split('T')[0]; }
 
+function uiFeedback(id, text, timeout) {
+    var originalText = document.getElementById(id).innerHTML;
+    document.getElementById(id).innerHTML = originalText + " (" + text + ")";
+    window.setTimeout(function () {
+        document.getElementById(id).innerHTML = originalText
+    }, timeout);
+}
+
 function submit() {
 
     var newdate = today()
@@ -182,10 +190,7 @@ function data_export() { // Create a function to export the data
     //     window.cleared = true; // Set the cleared state to true
     //     localStorage.setItem("data", btoa("[]")) // Set the data to an empty array
     // }
-    document.getElementById('option-file').innerHTML = 'File (Downloaded...)';
-    window.setTimeout(function () {
-        document.getElementById("option-file").innerHTML = 'File'
-    }, 1500);
+    uiFeedback("option-file", "Downloaded", 2500);
 }
 
 function clipboard() {
@@ -199,11 +204,7 @@ function clipboard() {
     string = string.substring(0, string.length - 2); // remove trailing commas
     console.log(string)
     navigator.clipboard.writeText(string).then(function () {
-        document.getElementById('option-clipboard').innerHTML = 'Clipboard (Copied...)';
-        window.setTimeout(function () {
-            document.getElementById("option-clipboard").innerHTML = 'Clipboard'
-        }, 1500);
-
+        uiFeedback("option-clipboard", "Copied", 2500);
     }, function (err) {
         alert("Could not copy to clipboard!")
     });
@@ -229,11 +230,7 @@ function clearData() {
             localStorage.setItem("data", btoa("[]")); // Set the data to an empty array
         }
 
-        document.getElementById('option-clear-data').innerHTML = 'Clear Data (Cleared...)';
-
-        window.setTimeout(function () {
-            document.getElementById("option-clear-data").innerHTML = 'Clear Data';
-        }, 1500);
+        uiFeedback("option-clear-data", "Cleared", 2500);
 }
 /* End Of Data Export */
 
@@ -394,10 +391,7 @@ window.makeWebhookRequest = function () {
 
     xhr.send(JSON.stringify(params));
 
-    document.getElementById('option-webhook').innerHTML = 'Configure Webhook (Sending data to webhook...)';
-    window.setTimeout(function () {
-        document.getElementById("option-webhook").innerHTML = 'Configure Webhook'
-    }, 1500);
+    uiFeedback("option-webhook", "Sending data to webhook", 2500);
 }
 
 window.setWebhookUrl = function (url) {
