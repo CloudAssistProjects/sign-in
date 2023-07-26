@@ -98,8 +98,6 @@
                                     <li onclick="clipboard() ; data_export(); window.makeWebhookRequest();"
                                         class="cursor-default select-none px-4 py-2" id="option-2" role="option"
                                         tabindex="-1">Both</li>
-                                    <li onclick="configureWebhook()" class="cursor-default select-none px-4 py-2"
-                                        id="option-webhook" role="option" tabindex="-1">Configure Webhook</li>
                                 </ul>
                             </li>
                             <li>
@@ -116,7 +114,9 @@
                                     <li onclick="clearDataWrapper();" id="option-clear-data"
                                         class="cursor-default select-none px-4 py-2" id="option-3" role="option"
                                         tabindex="-1">Clear Data</li>
-                                    <br />
+                                    <li onclick="configureWebhook()" class="cursor-default select-none px-4 py-2"
+                                        id="option-webhook" role="option" tabindex="-1">Configure Webhook</li>
+                                    <hr />
                                     <li onclick="closeOptionsModal()" class="cursor-default select-none px-4 py-2"
                                         id="option-3" role="option" tabindex="-1">Exit Modal</li>
                                 </ul>

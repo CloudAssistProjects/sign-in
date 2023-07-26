@@ -1,22 +1,20 @@
-window.cadets = [
-    // You can enter data here in the following format to provide a friendly message for known members
-    // {
-    //     "CAPID": "123456",
-    //     "First": "John",
-    //     "Middle": "Michael",
-    //     "Last": "Doe",
-    // }
-    // ...
-];
-
-/* Form Data */
-if (!localStorage.getItem("data")) { // If there is no data in local storage, create it
-    localStorage.setItem("data", btoa("[]")) // Create an empty array
+/* Set initial values if not present */
+if (!localStorage.getItem("webhookUrl")) {
+    localStorage.setItem("webhookUrl","");
 }
+if (!localStorage.getItem("data")) {
+    localStorage.setItem("data", btoa("[]"));
+}
+if (!localStorage.getItem("lastScan")) {
+    localStorage.setItem("lastScan", today());
+}
+window.cameraMode = false;
 
+/* Utility function to get today's date in local timezone */
 function today() { return new Date().toLocaleDateString().split('T')[0]; }
 
-function uiFeedback(id, text, timeout) {
+/* Utility function to alter a UI element by adding text that is removed after a timeout */
+function uiFeedback(id, text, timeout=3000) {
     var originalText = document.getElementById(id).innerHTML;
     document.getElementById(id).innerHTML = originalText + " (" + text + ")";
     window.setTimeout(function () {
@@ -25,14 +23,9 @@ function uiFeedback(id, text, timeout) {
 }
 
 function submit() {
-
-    var newdate = today()
-    localStorage.setItem("lastScan", newdate);
-
+    checkAndClear() // Check if the date has changed and clear previous data if it has
     document.getElementById("done-text").innerText = "You have been checked in successfully." // Set the text to "You have been checked in successfully."
-
     window.active = true; // set the modal state to active
-
     document.getElementById("done").style.display = "block" // Show the modal
     document.getElementById("done").focus() // Focus on the modal (to prevent the input from maintaining focus)
 
@@ -41,24 +34,17 @@ function submit() {
     if (b.length > 0) { // If the data is greater than 0
         document.getElementById("done-text").innerText = "You have already been checked in." // Set the text to "You have already been checked in."
         document.getElementById("nxt").innerText = "Close" // Set the text to "Close"
-        setTimeout(function () { // After 3000ms
+        setTimeout(function () { // After 1500ms
             next() // Run the next function
-        }, 3000)
+        }, 1500)
         document.getElementById("CAPID").value = ""; // Clear the input
         return; // return
     }
 
-
     console.log("✅ -> " + document.getElementById("CAPID").value) // Log the CAPID to the console
 
-    let e = cadets.filter(e => e.CAPID == document.getElementById("CAPID").value)[0]; // Get the cadet from the array
-    if (e && e.length !== 0) { // If the cadet exists
-        document.getElementById("done-text").innerText = "CADET " + e.Last + " has been checked in successfully." // Set the text to "CADET [LAST NAME] has been checked in successfully."
-        e = e.CAPID; // Set the CAPID to the cadet's CAPID 
+    e = document.getElementById("CAPID").value; // Set the CAPID to the inputted CAPID
 
-    } else {
-        e = document.getElementById("CAPID").value; // if cadet was not found, set the CAPID to the inputted CAPID
-    }
     let f = JSON.parse(atob(localStorage.getItem("data"))) // Get the data from local storage
     f.push(e); // Push the CAPID to the array
     noti_success(
@@ -71,7 +57,7 @@ function submit() {
     }
     document.getElementById("CAPID").value = ""; // Clear the input
 
-    let count = 1; // Set the seconds to 3
+    let count = 2; // Set the seconds to 2
     function tick() { // Create a function to tick down the seconds
         document.getElementById("nxt").innerText = count + "..."; // Set the text to the seconds
         if (count == 0) { // If the seconds are 0
@@ -86,12 +72,14 @@ function submit() {
     }, 1000)
 }
 
+/* Reset the UI elements and refocus */
 function next() { // Create a function to run when the modal is closed
     window.active = false;  // Set the modal state to inactive
     document.getElementById("done").style.display = "none" // Hide the modal
     document.getElementById("CAPID").focus() // Focus on the input
 }
 
+/* Initialize the UI elements */
 window.onload = function () { // When the page loads
     document.getElementById("done").style.display = "none" // Hide the modal
 
@@ -106,7 +94,6 @@ window.onload = function () { // When the page loads
             } else {
                 if (event.key == "Enter") { // If the key is enter and the modal is not active
 
-
                     submit() // Run the submit function
                 }
             }
@@ -115,39 +102,16 @@ window.onload = function () { // When the page loads
 
     })
 }
-window.cleared = false; // Set the cleared state to false
-setInterval(function () {
-    if (!window.cleared) { // If the cleared state is false
-        try { // Try to run the code
 
-            if (localStorage.getItem("data") && atob(localStorage.getItem("data")) && JSON.parse(atob(localStorage.getItem("data")))) { // If the data exists
-                window.backup = localStorage.getItem("data"); // Set the backup to the data
-            } else { // If the data does not exist
-                localStorage.setItem("data", window.backup); // Set the data to the backup
-            }
-        } catch (e) { } // If there is an error, do nothing
-    }
-}, 500)
-
-
-setInterval(function () {
-    if (localStorage.getItem("lastScan")) {
-        window.lastScan = localStorage.getItem("lastScan");
-
-    } else {
-        if (window.lastScan) {
-            localStorage.setItem("lastScan", window.lastScan)
-        }
-    }
-
+/* Check if the date has changed and clear previous data if it has */
+function checkAndClear() {
     var newdate = today()
-
-    if (window.lastScan !== newdate) {
+    if (!localStorage.getItem("lastScan")) { localStorage.setItem("lastScan", newdate); }
+    if (localStorage.getItem("lastScan") !== newdate) {
         clearData()
-        window.lastScan = newdate
-        localStorage.setItem("lastScan", window.lastScan)
+        localStorage.setItem("lastScan", newdate)
     }
-}, 500)
+}
 /* End Of Form Data */
 
 /* Data Export */
@@ -182,15 +146,7 @@ function data_export() { // Create a function to export the data
         }, 0);
 
     }
-    // window.cleared = true; // Set the cleared state to true
-    // console.log(string) // Log the string to the console
-    // window.backup = null; // Set the backup to null
-    // localStorage.clear() // Clear the local storage
-    // if (localStorage.length == 0 && window.backup == null) { // If the local storage is empty and the backup is null
-    //     window.cleared = true; // Set the cleared state to true
-    //     localStorage.setItem("data", btoa("[]")) // Set the data to an empty array
-    // }
-    uiFeedback("option-file", "Downloaded", 2500);
+    uiFeedback("option-file", "Downloaded");
 }
 
 function clipboard() {
@@ -204,12 +160,14 @@ function clipboard() {
     string = string.substring(0, string.length - 2); // remove trailing commas
     console.log(string)
     navigator.clipboard.writeText(string).then(function () {
-        uiFeedback("option-clipboard", "Copied", 2500);
+        uiFeedback("option-clipboard", "Copied");
     }, function (err) {
         alert("Could not copy to clipboard!")
     });
 }
+/* End Of Data Export */
 
+/* More Options */
 function clearDataWrapper() {
     var confirmClear = confirm("Are you sure you want to clear the data?");
     if (confirmClear) {
@@ -217,24 +175,11 @@ function clearDataWrapper() {
     }
 }
 
-
 function clearData() {
-        window.cleared = true; // Set the cleared state to true
-        window.backup = null; // Set the backup to null
-        localStorage.removeItem("data");
-        localStorage.removeItem("lastScan");
-
-        if (localStorage.length == 0 && window.backup == null) {
-            // If the local storage is empty and the backup is null
-            window.cleared = true; // Set the cleared state to true
-            localStorage.setItem("data", btoa("[]")); // Set the data to an empty array
-        }
-
-        uiFeedback("option-clear-data", "Cleared", 2500);
+        localStorage.setItem("data", btoa("[]")); // Set the data to an empty array
+        uiFeedback("option-clear-data", "Cleared");
 }
-/* End Of Data Export */
 
-/* More Options */
 function closeOptionsModal() {
     document.getElementById("optionBox").style.display = "none"
     document.getElementById("CAPID").focus()
@@ -249,7 +194,6 @@ function moreOptions() {
     }, 300)
 }
 
-window.cameraMode = false;
 function toggleCameraMode() {
     window.cameraMode = !window.cameraMode;
     if (window.cameraMode) {
@@ -367,21 +311,12 @@ function initBarcode() {
 /* End Of Barcode */
 
 /* Webhook */
-// make POST request xhr
-if (!window.config) {
-    window.config = {};
-}
-
-
-if (!window.config.webhookUrl) {
-    window.config.webhookUrl = localStorage.getItem("webhookUrl");
-}
 window.makeWebhookRequest = function () {
-    if (!window.config.webhookUrl) return;
+    if (!localStorage.getItem("webhookUrl")) return;
     let e = JSON.parse(atob(localStorage.getItem("data"))); // Get the data
 
     var xhr = new XMLHttpRequest();
-    xhr.open("POST", window.config.webhookUrl);
+    xhr.open("POST", localStorage.getItem("webhookUrl"));
     xhr.setRequestHeader('Content-type', 'application/json');
     var newdate = today()
     var params = {
@@ -391,20 +326,17 @@ window.makeWebhookRequest = function () {
 
     xhr.send(JSON.stringify(params));
 
-    uiFeedback("option-webhook", "Sending data to webhook", 2500);
+    uiFeedback("option-webhook", "Sending data to webhook");
 }
 
 window.setWebhookUrl = function (url) {
     // Save the current webhook URL to the backup
-    window.config.backupWebhookUrl = window.config.webhookUrl;
-    localStorage.setItem("backupwebhookUrl", window.config.backupWebhookUrl);
-
-    window.config.webhookUrl = url;
-    localStorage.setItem("webhookUrl", window.config.webhookUrl);
+    localStorage.setItem("backupwebhookUrl", localStorage.getItem("webhookUrl"));
+    localStorage.setItem("webhookUrl", url);
 }
 
 window.configureWebhook = function () {
-    var url = prompt("Enter the webhook URL" + (window.config.webhookUrl ? " (Current: " + window.config.webhookUrl.substring(0, 25) + "...)" : ""));
+    var url = prompt("Enter the webhook URL" + (localStorage.getItem("webhookUrl") ? " (Current: " + localStorage.getItem("webhookUrl").substring(0, 25) + "...)" : ""));
     if (url === "") {
         var confirmClear = confirm("Are you sure you want to clear the webhook URL? Click 'Cancel' if you do not want to disable email export.");
         if (confirmClear) {
