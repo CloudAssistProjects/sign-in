@@ -216,8 +216,8 @@ function clearDataWrapper() {
 function clearData() {
         window.cleared = true; // Set the cleared state to true
         window.backup = null; // Set the backup to null
-        localStorage.deleteItem("data");
-        localStorage.deleteItem("lastScan");
+        localStorage.removeItem("data");
+        localStorage.removeItem("lastScan");
 
         if (localStorage.length == 0 && window.backup == null) {
             // If the local storage is empty and the backup is null
