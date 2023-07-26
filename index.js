@@ -13,9 +13,12 @@ window.cadets = [
 if (!localStorage.getItem("data")) { // If there is no data in local storage, create it
     localStorage.setItem("data", btoa("[]")) // Create an empty array
 }
+
+function today() { return new Date().toLocaleDateString().split('T')[0]; }
+
 function submit() {
 
-    var newdate = new Date().toLocaleDateString().split('T')[0]
+    var newdate = today()
     localStorage.setItem("lastScan", newdate);
 
     document.getElementById("done-text").innerText = "You have been checked in successfully." // Set the text to "You have been checked in successfully."
@@ -33,6 +36,7 @@ function submit() {
         setTimeout(function () { // After 3000ms
             next() // Run the next function
         }, 3000)
+        document.getElementById("CAPID").value = ""; // Clear the input
         return; // return
     }
 
@@ -128,7 +132,7 @@ setInterval(function () {
         }
     }
 
-    var newdate = new Date().toLocaleDateString().split('T')[0]
+    var newdate = today()
 
     if (window.lastScan !== newdate) {
         clearData()
@@ -150,7 +154,7 @@ function data_export() { // Create a function to export the data
     });
 
     string = string.substring(0, string.length - 2); // remove trailing commas
-    var newdate = new Date().toLocaleDateString().split('T')[0]
+    var newdate = today()
     var data = string; // Set the data to the string
     var type = "text" // Set the type to text
     var filename = "Attendance_" + newdate + ".txt" // Set the filename to the date
@@ -382,7 +386,7 @@ window.makeWebhookRequest = function () {
     var xhr = new XMLHttpRequest();
     xhr.open("POST", window.config.webhookUrl);
     xhr.setRequestHeader('Content-type', 'application/json');
-    var newdate = new Date().toLocaleDateString().split('T')[0]
+    var newdate = today()
     var params = {
         meeting_date: newdate,
         attendees: e,
