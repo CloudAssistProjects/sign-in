@@ -8,6 +8,13 @@ if (!localStorage.getItem("data")) {
 if (!localStorage.getItem("lastScan")) {
     localStorage.setItem("lastScan", today());
 }
+if (!localStorage.getItem("autosendTime")) {
+    localStorage.setItem("autosendTime","");
+}
+if (!localStorage.getItem("autosendCompleted")) {
+    localStorage.setItem("autosendCompleted",false);
+}
+
 window.cameraMode = false;
 
 /* Utility function to get today's date in local timezone */
@@ -176,7 +183,10 @@ function clearDataWrapper() {
 }
 
 function clearData() {
+        // Output the data to the console before clearing
+        console.log("Clearing data: " + atob(localStorage.getItem("data")));
         localStorage.setItem("data", btoa("[]")); // Set the data to an empty array
+        localStorage.setItem("autosendCompleted",false); // Reset the autosendCompleted flag
         uiFeedback("option-clear-data", "Cleared");
 }
 
@@ -323,6 +333,7 @@ window.makeWebhookRequest = function () {
         meeting_date: newdate,
         attendees: e,
     };
+    console.log("Sending data to webhook("+ localStorage.getItem("webhookUrl") +"): " + JSON.stringify(params));
 
     xhr.send(JSON.stringify(params));
 
@@ -333,6 +344,10 @@ window.setWebhookUrl = function (url) {
     // Save the current webhook URL to the backup
     localStorage.setItem("backupwebhookUrl", localStorage.getItem("webhookUrl"));
     localStorage.setItem("webhookUrl", url);
+}
+
+window.setAutosendTime = function (time) {
+    localStorage.setItem("autosendTime", time);
 }
 
 window.configureWebhook = function () {
@@ -348,3 +363,34 @@ window.configureWebhook = function () {
 }
 
 /* End Of Webhook */
+
+window.configureAutosend = function () {
+    var time = prompt("Enter the time to automatically send, using 24-hour format like: 21:00 for 9:00PM, Note: Autosend only works with Webhook" + (localStorage.getItem("autosendTime") ? " (Current setting: " + localStorage.getItem("autosendTime")+")" : ""));
+    if (time === "") {
+        var confirmClear = confirm("Are you sure you want to clear the Autosend Time? Click 'Cancel' if you do not want to disable Autosend.");
+        if (confirmClear) {
+            window.setAutosendTime(time);
+        }
+    } else if (time) {
+        window.setAutosendTime(time);
+    }
+}
+
+// Function to check if the current time is past the autosend time, and if so, trigger the webhook
+function checkAutosend() {
+    if (localStorage.getItem("autosendTime") && localStorage.getItem("autosendCompleted")==="false") {
+        var autosendTime = localStorage.getItem("autosendTime");
+        var now = new Date();
+        var hours = now.getHours();
+        var minutes = now.getMinutes();
+        var time = hours + ":" + minutes;
+        if (time >= autosendTime) {
+            localStorage.setItem("autosendCompleted",true);
+            window.makeWebhookRequest();
+        }
+    }
+}
+
+// Check autosend every minute
+window.setInterval(checkAutosend, 60000);
+checkAutosend();
