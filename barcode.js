@@ -24,7 +24,7 @@ function checkCameraState() {
                     constraints: {
                         width: { min: 640 },
                         height: { min: 480 },
-                        facingMode: "environment",
+                        facingMode: "user",
                         aspectRatio: { min: 1, max: 2 }
                     }
                 },
