@@ -31,6 +31,7 @@ function uiFeedback(id, text, timeout=3000) {
 
 function submit() {
     checkAndClear() // Check if the date has changed and clear previous data if it has
+    console.debug('Records Pending: '+incRecordsPending()); // Increment the pending records count
     document.getElementById("done-text").innerText = "You have been checked in successfully." // Set the text to "You have been checked in successfully."
     window.active = true; // set the modal state to active
     document.getElementById("done").style.display = "block" // Show the modal
@@ -110,11 +111,40 @@ window.onload = function () { // When the page loads
     })
 }
 
+function getRecordsPending() {
+    if(!localStorage.getItem("pending")) {
+        if(localStorage.getItem("data")) {
+            let e = JSON.parse(atob(localStorage.getItem("data"))); // Get the data
+            pending = e.length; // Set the pending to the length of the data
+            localStorage.setItem("pending", pending);
+        } else {
+            localStorage.setItem("pending", 0);
+        };
+    }
+    var pending = parseInt(localStorage.getItem("pending"));
+    return pending;
+}
+function incRecordsPending() {
+    if(!localStorage.getItem("pending")) { localStorage.setItem("pending", 0);}
+    var pending = parseInt(localStorage.getItem("pending"));
+    pending++;
+    localStorage.setItem("pending", pending);
+    return pending;
+}
+function resetRecordsPending() {
+    localStorage.setItem("pending", 0);
+    return 0;
+}
+
 /* Check if the date has changed and clear previous data if it has */
 function checkAndClear() {
     var newdate = today()
     if (!localStorage.getItem("lastScan")) { localStorage.setItem("lastScan", newdate); }
     if (localStorage.getItem("lastScan") !== newdate) {
+        if(getRecordsPending() > 0) {
+            window.makeWebhookRequest(localStorage.getItem("lastScan") + " (RECOVERED)");
+
+        }
         clearData()
         localStorage.setItem("lastScan", newdate)
     }
@@ -187,6 +217,7 @@ function clearData() {
         console.log("Clearing data: " + atob(localStorage.getItem("data")));
         localStorage.setItem("data", btoa("[]")); // Set the data to an empty array
         localStorage.setItem("autosendCompleted",false); // Reset the autosendCompleted flag
+        resetRecordsPending(); // Reset the pending records
         uiFeedback("option-clear-data", "Cleared");
 }
 
@@ -321,16 +352,15 @@ function initBarcode() {
 /* End Of Barcode */
 
 /* Webhook */
-window.makeWebhookRequest = function () {
+window.makeWebhookRequest = function (label=today()) {
     if (!localStorage.getItem("webhookUrl")) return;
     let e = JSON.parse(atob(localStorage.getItem("data"))); // Get the data
 
     var xhr = new XMLHttpRequest();
     xhr.open("POST", localStorage.getItem("webhookUrl"));
     xhr.setRequestHeader('Content-type', 'application/json');
-    var newdate = today()
     var params = {
-        meeting_date: newdate,
+        meeting_date: label,
         attendees: e,
     };
     console.log("Sending data to webhook("+ localStorage.getItem("webhookUrl") +"): " + JSON.stringify(params));
