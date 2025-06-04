@@ -364,10 +364,9 @@ window.makeWebhookRequest = function (label=today()) {
         attendees: e,
     };
     console.log("Sending data to webhook("+ localStorage.getItem("webhookUrl") +"): " + JSON.stringify(params));
-
     xhr.send(JSON.stringify(params));
-
     uiFeedback("option-webhook", "Sending data to webhook");
+    resetRecordsPending();
 }
 
 window.setWebhookUrl = function (url) {
