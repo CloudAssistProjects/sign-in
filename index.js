@@ -20,25 +20,50 @@ window.cameraMode = false;
 /* Utility function to get today's date in local timezone */
 function today() { return new Date().toLocaleDateString().split('T')[0]; }
 
-/* Utility function to alter a UI element by adding text that is removed after a timeout */
+/* Utility function to convert a 24-hour "HH:MM" time into minutes since midnight */
+function timeToMinutes(time) {
+    var parts = time.split(":");
+    return (parseInt(parts[0], 10) * 60) + parseInt(parts[1], 10);
+}
+
+/* Utility function to tell whether an element takes keyboard input of its own */
+function isFormField(element) {
+    if (!element) { return false; }
+    if (element.isContentEditable) { return true; }
+    return element.tagName == "INPUT" || element.tagName == "TEXTAREA" || element.tagName == "SELECT";
+}
+
+/* Utility function to alter a UI element by adding text that is removed after a timeout.
+   A second message on the same element replaces the first rather than stacking on it. */
 function uiFeedback(id, text, timeout=3000) {
-    var originalText = document.getElementById(id).innerHTML;
-    document.getElementById(id).innerHTML = originalText + " (" + text + ")";
-    window.setTimeout(function () {
-        document.getElementById(id).innerHTML = originalText
+    var element = document.getElementById(id);
+    if (element.feedbackTimer) { // A message is already showing - replace it
+        window.clearTimeout(element.feedbackTimer);
+    } else {
+        element.feedbackOriginalText = element.innerHTML; // Remember the real text, once
+    }
+    element.innerHTML = element.feedbackOriginalText + " (" + text + ")";
+    element.feedbackTimer = window.setTimeout(function () {
+        element.innerHTML = element.feedbackOriginalText;
+        element.feedbackTimer = null;
     }, timeout);
 }
 
 function submit() {
+    var capid = document.getElementById("CAPID").value; // Read the scanned/entered CAPID
+
+    if (!capid) { // If the input is empty - an empty Enter press, or a scan the number input rejected
+        return; // Record nothing, and do not show the success modal
+    }
+
     checkAndClear() // Check if the date has changed and clear previous data if it has
-    console.debug('Records Pending: '+incRecordsPending()); // Increment the pending records count
     document.getElementById("done-text").innerText = "You have been checked in successfully." // Set the text to "You have been checked in successfully."
     window.active = true; // set the modal state to active
     document.getElementById("done").style.display = "block" // Show the modal
     document.getElementById("done").focus() // Focus on the modal (to prevent the input from maintaining focus)
 
     var b = JSON.parse(atob(localStorage.getItem("data"))) // Get the data
-    b = b.filter(x => x == document.getElementById("CAPID").value) // Filter the data to only include the CAPID
+    b = b.filter(x => x == capid) // Filter the data to only include the CAPID
     if (b.length > 0) { // If the data is greater than 0
         document.getElementById("done-text").innerText = "You have already been checked in." // Set the text to "You have already been checked in."
         document.getElementById("nxt").innerText = "Close" // Set the text to "Close"
@@ -49,20 +74,17 @@ function submit() {
         return; // return
     }
 
-    console.log("✅ -> " + document.getElementById("CAPID").value) // Log the CAPID to the console
-
-    e = document.getElementById("CAPID").value; // Set the CAPID to the inputted CAPID
+    console.log("✅ -> " + capid) // Log the CAPID to the console
 
     let f = JSON.parse(atob(localStorage.getItem("data"))) // Get the data from local storage
-    f.push(e); // Push the CAPID to the array
+    f.push(capid); // Push the CAPID to the array
+    localStorage.setItem("data", btoa(JSON.stringify(f))) // Set the data in local storage to the new array
+    console.debug('Records Pending: '+incRecordsPending()); // Count the stored record as pending delivery
     noti_success(
         "Checked In!",
-        e + " has been checked in successfully.",
+        capid + " has been checked in successfully.",
         10000
     );
-    if (e) { // If the CAPID exists
-        localStorage.setItem("data", btoa(JSON.stringify(f))) // Set the data in local storage to the new array
-    }
     document.getElementById("CAPID").value = ""; // Clear the input
 
     let count = 2; // Set the seconds to 2
@@ -80,11 +102,23 @@ function submit() {
     }, 1000)
 }
 
+window.scanQueue = []; // Scans that arrived while the success modal was still counting down
+
+/* Hold a scan until the success modal finishes its countdown */
+function queueScan(capid) {
+    if (capid) { window.scanQueue.push(capid); }
+}
+
 /* Reset the UI elements and refocus */
 function next() { // Create a function to run when the modal is closed
     window.active = false;  // Set the modal state to inactive
     document.getElementById("done").style.display = "none" // Hide the modal
     document.getElementById("CAPID").focus() // Focus on the input
+
+    if (window.scanQueue.length > 0) { // Someone scanned while the modal was up
+        document.getElementById("CAPID").value = window.scanQueue.shift(); // Take the oldest queued scan
+        submit() // Check them in, which starts a fresh countdown
+    }
 }
 
 /* Initialize the UI elements */
@@ -93,21 +127,36 @@ window.onload = function () { // When the page loads
 
     document.getElementById("CAPID").focus()   // Focus on the input
 
-    document.body.addEventListener('keydown', function (event) { // When a key is pressed
+    /* Collect input at the document level so that a scan is never lost to whatever
+       happens to have focus. The CAPID field doubles as the buffer, so a scan reaches
+       submit() the same way whether it was buffered here or typed into the field. */
+    document.addEventListener('keydown', function (event) { // When a key is pressed
+        var capidField = document.getElementById("CAPID");
 
-        try { // Try to run the code
+        if (isFormField(event.target) && event.target !== capidField) {
+            return; // A config field has focus - let it handle every key, Enter included
+        }
 
-            if (event.key == "Enter" && window.active) { // If the key is enter and the modal is active
-                return; // Do nothing
+        if (event.key == "Enter") { // A scanner sends a carriage return at the end of a scan
+            event.preventDefault(); // Enter always means "end of scan", never "press the focused button"
+            if (window.active) { // The success modal is still counting down
+                queueScan(capidField.value); // Hold this scan until the modal closes
+                capidField.value = ""; // Clear the input, ready for the next scan
             } else {
-                if (event.key == "Enter") { // If the key is enter and the modal is not active
-
-                    submit() // Run the submit function
-                }
+                submit() // Run the submit function
             }
+            return;
+        }
 
-        } catch (e) { console.log(e) }; // If there is an error, log it to the console
+        if (event.target === capidField) {
+            return; // The field has focus, so let the browser type into it directly
+        }
 
+        if (/^[0-9]$/.test(event.key)) { // Buffer scanned or typed digits into the field
+            capidField.value = capidField.value + event.key;
+        } else if (event.key == "Backspace") {
+            capidField.value = capidField.value.slice(0, -1); // Correct a mistyped digit
+        }
     })
 }
 
@@ -283,17 +332,35 @@ window.makeWebhookRequest = function (label=today()) {
         if (xhr.status >= 200 && xhr.status < 300) {
             console.log('Request succeeded (non-JSON):', xhr.responseText);
             resetRecordsPending();
+            uiFeedback("option-webhook", "Sent");
         } else {
             console.error('HTTP error', xhr.status, xhr.statusText, xhr.responseText);
-            // handle server-side error...
+            webhookNotConfirmed("The webhook rejected the data (HTTP " + xhr.status + " " + xhr.statusText + "), so it has NOT been sent.");
         }
     };
     xhr.onerror = function () {
-        console.error('Network error', xhr.status, xhr.statusText);
+        /* Status 0: the browser would not let us read the reply. Either this machine
+           cannot reach the endpoint, or the endpoint answered without an
+           Access-Control-Allow-Origin header. In the second case the data did arrive,
+           but there is no way to tell the two apart from here, so the records stay
+           pending and the operator is told to use a backup export. */
+        console.error('No readable response (status 0). The POST may or may not have arrived.');
+        if (navigator.onLine === false) {
+            webhookNotConfirmed("This machine is offline, so the data has NOT been sent.");
+        } else {
+            webhookNotConfirmed("No response could be read, so the data may or may not have arrived. If it did, tomorrow's first scan will send it again labelled (RECOVERED).");
+        }
     };
 
     xhr.send(JSON.stringify(params));
     uiFeedback("option-webhook", "Sending data to webhook");
+}
+
+/* Warn the operator that a webhook send could not be confirmed. The records stay
+   pending either way, so the safe move is always a File or Clipboard export. */
+function webhookNotConfirmed(reason) {
+    uiFeedback("option-webhook", "Not confirmed");
+    alert("Webhook not confirmed.\n\n" + reason + "\n\nExport the attendance with File or Clipboard as a backup. The records remain marked as pending.");
 }
 
 window.setWebhookUrl = function (url) {
@@ -328,6 +395,10 @@ window.configureAutosend = function () {
             window.setAutosendTime(time);
         }
     } else if (time) {
+        if (!/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(time)) { // Must be 24-hour HH:MM
+            alert("Please enter the time in 24-hour format, like: 21:00 for 9:00PM");
+            return;
+        }
         window.setAutosendTime(time);
     }
 }
@@ -337,10 +408,8 @@ function checkAutosend() {
     if (localStorage.getItem("autosendTime") && localStorage.getItem("autosendCompleted")==="false") {
         var autosendTime = localStorage.getItem("autosendTime");
         var now = new Date();
-        var hours = now.getHours();
-        var minutes = now.getMinutes();
-        var time = hours + ":" + minutes;
-        if (time >= autosendTime) {
+        var nowMinutes = (now.getHours() * 60) + now.getMinutes();
+        if (nowMinutes >= timeToMinutes(autosendTime)) {
             localStorage.setItem("autosendCompleted",true);
             window.makeWebhookRequest();
         }
