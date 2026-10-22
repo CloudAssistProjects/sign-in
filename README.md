@@ -129,7 +129,7 @@ If a value is configured in the Webhook setting, any time you export data (clipb
 
 #### The pending records button
 
-Off unless you turn it on, under More Options, Settings, Show Send Button. Sending is normally autosend's job, and a button inviting whoever is passing to press it is not wanted on a table people are signing in at.
+On by default, and switched off under More Options, Settings, Show Send Button. Sending is also autosend's job, so the button is a way of getting the records away before the machine is shut rather than the only way.
 
 With it on, and records waiting, and a webhook configured, a light green button appears in the lower left corner just above More Options, reading "{N} Pending Records, Click Here to Send Before Closing Laptop". The wording is aimed at whoever is packing up rather than at the members queueing. On a phone or an upright tablet it shortens to "{N} Pending, Tap to Send" - closing a laptop means nothing there - and sizes itself to its own wording so it never wraps; once the preview has taken the top of the page it moves down to the bottom right corner, clear of the picture and under the thumb. Clicking it posts the attendance immediately. A toast reports "Sending {N} Records" and then "{N} Records Sent" once the webhook confirms, at which point the button reads "0 Pending Records" and fades away.
 

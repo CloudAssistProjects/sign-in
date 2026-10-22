@@ -21,7 +21,7 @@ if (!localStorage.getItem("warnManualEntry")) {
     localStorage.setItem("warnManualEntry",false);
 }
 if (!localStorage.getItem("showSendButton")) {
-    localStorage.setItem("showSendButton",false);
+    localStorage.setItem("showSendButton",true);
 }
 
 /* Camera mode is remembered, so a station set up to read cards from the webcam comes back
