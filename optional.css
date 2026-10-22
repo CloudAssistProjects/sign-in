@@ -202,6 +202,23 @@ button.more-options-button:focus-visible {
   border-radius: 0;
 }
 
+/* TEMPORARY, for debugging: the figures sit under the target, in the border, matching the
+   caption above it for size and weight but in black so they read against the picture. */
+.scanner-guide__status {
+  position: absolute;
+  left: 50%;
+  bottom: -15px;
+  transform: translateX(-50%) scale(-1, 1);
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: #000;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(255, 255, 255, 0.95);
+  border-radius: 0;
+}
+
 .scanner-guide--found {
   border-style: solid;
   border-color: rgb(34, 197, 94);

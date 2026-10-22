@@ -27,6 +27,9 @@ window.cameraOcrEveryMs = 250;      // How often to look, if the last look has f
 window.cameraOcrAgreeMs = 1500;     // How long two readings have to agree within
 window.cameraOcrBase = "ocr/";      // Local folder holding the text reader - never a CDN
 window.cameraDebug = false;         // Log a line a second about what the camera can see
+window.cameraShowFrameInfo = true;  // TEMPORARY, for debugging: print the frame, crop and
+                                    // rendered sizes under the target, where a phone can
+                                    // be read without a console
 
 /* Where the Data Matrix sits on the front of the card, as fractions of the card. ZXing's
    JavaScript reader only finds it when handed a tight crop, so we cut a small window at
@@ -108,6 +111,7 @@ var cameraWork = null, cameraWorkCtx = null;     // Card crop, used both to deco
 var cameraTimer = null, cameraGuide = null, cameraZones = null;
 var cameraRead = null, readTimer = null;         // The number shown back after a read
 var cameraHost = null, cameraShown = false;      // The preview box, and whether it is up yet
+var cameraStatus = null;                         // TEMPORARY, for debugging the above
 var nativeDetector = null, nativeChecked = false;
 var cameraDevices = [], cameraRetried = false;   // The cameras on offer, once they can be named
 var zxingReader = null, zxingHints = null;
@@ -367,6 +371,23 @@ function acceptScannedCode(code, source) {
 
 /* ================= The preview ================= */
 
+/* TEMPORARY, for debugging. The sizes this reports are the whole question: whether the
+   picture is being drawn at the width it was told to be, and whether the box it sits in
+   is the shape the crop asked for. A phone has no console worth reading, so it goes on
+   the screen, under the target where it covers nothing that matters. */
+function showFrameInfo(vw, vh, crop) {
+    if (!window.cameraShowFrameInfo || !cameraStatus || !cameraHost || !cameraVideo) { return; }
+    var box = cameraHost.getBoundingClientRect();
+    var vid = cameraVideo.getBoundingClientRect();
+    if (!box.width) { return; }
+    cameraStatus.textContent =
+        "frame " + vw + "x" + vh
+        + "   crop " + Math.round(crop.w) + "x" + Math.round(crop.h)
+        + "   box " + Math.round(box.width) + "x" + Math.round(box.height)
+        + "   want " + Math.round(box.width * vw / crop.w)
+        + "   got " + Math.round(vid.width) + "x" + Math.round(vid.height);
+}
+
 /* What of the camera frame is worth showing: the card target and a border around it,
    rather than the whole frame. A phone hands over a tall portrait picture with the card a
    landscape strip across the middle; showing all of that wastes most of the screen on
@@ -433,6 +454,7 @@ function cameraPass() {
     cameraWorkCtx.drawImage(cameraVideo, rect.x, rect.y, rect.w, rect.h, 0, 0, workW, workH);
     var crop = previewCrop(rect, vw, vh);
     placeOverlay(rect, crop, vw, vh);
+    showFrameInfo(vw, vh, crop);
 
     if (!cameraShown && cameraHost) {   // Sized from a real frame now, so it can be seen
         cameraShown = true;
@@ -621,6 +643,11 @@ function buildPreview(host) {
     guideLabel.className = "scanner-guide__label";
     guideLabel.textContent = "Line Up Card Here (Front or Back)";
     cameraGuide.appendChild(guideLabel);
+    /* TEMPORARY, for debugging: what the camera says the frame is, what that crops to, and
+       what the box and the picture inside it actually came out as. */
+    cameraStatus = document.createElement("span");
+    cameraStatus.className = "scanner-guide__status";
+    cameraGuide.appendChild(cameraStatus);
     host.appendChild(cameraGuide);
 
     /* The whole target is drawn, but only the zones are let through, so the sharp picture
@@ -739,7 +766,7 @@ function stopCamera() {
     window.cameraStarted = false;
     showSwitchButton(false);
     cameraVideo = null; cameraGuide = null; cameraWork = null; cameraWorkCtx = null;
-    cameraZones = null; cameraRead = null;
+    cameraZones = null; cameraRead = null; cameraStatus = null;
     var host = document.getElementsByClassName("scanner-cam")[0];
     if (host) {
         host.innerHTML = "";
