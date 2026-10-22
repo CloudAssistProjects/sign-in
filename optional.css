@@ -4,20 +4,39 @@
 }
 
 .scanner-cam {
-   margin-bottom:70px;
-   margin-right:10px;
-    width: 440px;
-    height: 280px;
-    position:fixed;
-    bottom:0;
-    right:0;
-    z-index:99;
-    transform: scale(-1, 1);
+  /* The same inset on both sides, so it sits squarely in the corner. It used to be held
+     70px up to clear the buttons that once ran along the bottom; they are in the opposite
+     corner now, and the preview is never wide enough to reach them. */
+  margin-bottom: 10px;
+  margin-right: 10px;
+  width: 440px;
+  max-width: calc(100vw - 20px);
+  height: auto;
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  z-index: 99;
+  overflow: hidden;
+  border-radius: 17px;
+  transform: scale(-1, 1);
+  transition: opacity 0.25s;
+}
 
-  }
+/* Between switching the camera on and the first frame arriving there is nothing worth
+   showing, and a video element with no stream yet is the wrong shape, so buildPreview
+   hides the box until cameraPass has a frame to size it from. That is done on the element
+   itself rather than with a class here, so that a cached stylesheet cannot leave the
+   half-built preview on show; this rule only supplies the fade when it is revealed. */
 
   .scanner-cam *{
     border-radius:17px;
+  }
+
+  /* Keep the camera picture inside its corner box whatever resolution the camera gives */
+  .scanner-cam video,
+  .scanner-cam canvas {
+    width: 100%;
+    height: auto;
   }
   
   .scanner-cam--scanned {
@@ -34,4 +53,592 @@ input[type='number']::-webkit-inner-spin-button,
 input[type='number']::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
+}
+
+/* The local-mode webhook preview: readable JSON that scrolls when it is too long */
+.webhook-preview {
+  margin-top: 12px;
+  padding: 10px 12px;
+  max-height: 50vh;
+  overflow: auto;
+  text-align: left;
+  background: rgb(246, 246, 246);
+  border-radius: 6px;
+  font-family: ui-monospace, Menlo, Consolas, "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgb(31, 41, 55);
+}
+
+/* More Options, floating in the lower left. Dark grey rather than the blue of "Sign in",
+   so that the one button a member is meant to press is the obvious one. */
+/* The element is named in the selector as well as the class on purpose. Tailwind's reset
+   carries `[type=button] { background-color: transparent }`, and an attribute selector has
+   exactly the same specificity as a class; since style.css is loaded after this file, a
+   plain `.more-options-button` ties and loses, leaving white text on no background at all.
+   Adding the element name settles it. */
+button.more-options-button {
+  position: fixed;
+  bottom: 14px;
+  left: 14px;
+  z-index: 5;
+  /* The two share a width so they read as one stack rather than two stray buttons. 280px
+     is where the send button's wording fills two lines and keeps filling them all the way
+     up to "999 Pending Records"; it goes to three below about 250px, and the second line
+     thins out to a word or two above about 300px. */
+  width: 280px;
+  max-width: calc(100vw - 28px);
+  text-align: center;
+  padding: 10px 16px;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  background-color: #374151;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.more-options-button__icon {
+  display: none;
+}
+
+button.more-options-button:focus-visible {
+  outline: 2px solid #374151;
+  outline-offset: 2px;
+}
+
+/* The floating "send pending records" button, stacked directly above More Options. Both
+   sit in the lower left, clear of the camera feed, and below the z-index of the modals so
+   that they go under their dimmed backdrop. */
+.pending-button {
+  position: fixed;
+  bottom: 64px;
+  left: 14px;
+  z-index: 5;
+  width: 280px;
+  max-width: calc(100vw - 28px);
+  text-align: center;
+  padding: 10px 16px;
+  border: 1px solid rgb(134, 239, 172);
+  border-radius: 8px;
+  background: rgb(187, 247, 208);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  color: rgb(22, 101, 52);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+
+/* The send button carries both wordings; which one shows is a question of width, so it
+   is settled here rather than in script. */
+.pending-compact {
+  display: none;
+}
+
+.pending-button:hover {
+  background: rgb(167, 243, 190);
+}
+
+/* The camera picture is always blurred. Scaled up a little because a CSS blur goes
+   transparent at the edges, which would otherwise show as a soft frame. */
+.scanner-cam video {
+  display: block;
+  width: 100%;
+  height: auto;
+  transform: scale(1.08);
+}
+
+/* The card-shaped target the member holds their card against */
+.scanner-guide {
+  position: absolute;
+  border: 2px dashed rgba(255, 255, 255, 0.85);
+  border-radius: 10px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+  transition: border-color 0.2s;
+}
+
+/* Sits just above the dashed outline, in the darkened margin around the target */
+.scanner-guide__label {
+  position: absolute;
+  left: 50%;
+  top: -14px;
+  transform: translateX(-50%) scale(-1, 1);
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+  border-radius: 0;
+}
+
+.scanner-guide--found {
+  border-style: solid;
+  border-color: rgb(34, 197, 94);
+}
+
+/* ================= Target zones ================= */
+
+/* Holds the clipping shape for the sharp canvas. Nothing is drawn by it. */
+.scanner-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.scanner-zones {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 0;
+}
+
+/* One green box per thing worth lining up. The sharp canvas is clipped to these same
+   rectangles, so each box is also the window the picture comes through unblurred. */
+.scanner-zone {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid rgba(34, 197, 94, 0.9);
+  background: rgba(34, 197, 94, 0.14);
+  border-radius: 3px;
+}
+
+/* Sat above its box rather than in it, so it never covers what is being read. The preview
+   is mirrored to behave like a mirror, so the text has to be flipped back to read. */
+.scanner-zone__label {
+  position: absolute;
+  left: 50%;
+  top: -14px;
+  transform: translateX(-50%) scale(-1, 1);
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1;
+  color: #fff;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+  border-radius: 0;
+}
+
+/* A faint drawing of what the box is waiting for. Flipped back out of the mirrored
+   preview, so that the digits read the right way round. */
+.scanner-zone__glyph {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(-1, 1);
+  border-radius: 0;
+}
+
+.scanner-zone__glyph svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: rgba(0, 0, 0, 0.38);
+  border-radius: 0;
+}
+
+/* The only sharp thing on screen, and only inside the three target zones */
+.scanner-sharp {
+  position: absolute;
+  border-radius: 10px;
+  pointer-events: none;
+}
+
+/* ================= Camera mode toggle ================= */
+
+/* Top left, so the webcam can be turned on and off without opening More Options. It and
+   the switch in the menu are two faces of the same setting - setCameraToggleUI drives
+   both, whichever one was pressed. */
+.camera-toggle {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 100;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 9999px;
+  background: #fff;
+  color: #6b7280;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.camera-toggle svg {
+  width: 24px;
+  height: 24px;
+}
+
+.camera-toggle:hover {
+  color: #374151;
+}
+
+.camera-toggle:focus-visible {
+  outline: 2px solid #4f46e5;
+  outline-offset: 2px;
+}
+
+/* The icon says what pressing it will do rather than what the state is: a camera to turn
+   the camera on, a camera struck through to turn it off. */
+.camera-toggle__slash {
+  display: none;
+}
+
+.camera-toggle--on .camera-toggle__slash {
+  display: inline;
+}
+
+/* The switch in More Options never showed an on state beyond the knob moving */
+[role="switch"][aria-checked="true"] {
+  background-color: #4f46e5;
+}
+
+/* ================= The number just read ================= */
+
+/* Laid across the whole preview, so a successful sign-in reads from a distance. */
+.scanner-read {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  border-radius: 0;
+}
+
+/* Two thirds of the preview wide, whatever the number. textLength in the SVG does the
+   fitting, so six figures and seven come out the same size. */
+.scanner-read svg {
+  display: block;
+  width: 66%;
+  height: auto;
+  transform: scale(-1, 1);
+  fill: #fff;
+  filter: drop-shadow(0 2px 7px rgba(0, 0, 0, 0.95));
+  border-radius: 0;
+}
+
+/* While the number is up, the guidance gets out of its way */
+.scanner-cam--read .scanner-zones,
+.scanner-cam--read .scanner-sharp,
+.scanner-cam--read .scanner-guide__label {
+  display: none;
+}
+
+/* ================= Manual entry warning ================= */
+
+/* Shown in the confirmation only when "Warn on Manual Entry" is on and the number was
+   typed rather than scanned. */
+/* Sized to fill the widened panel in three lines. The step from three to four falls
+   between 23px and 24px for this wording, so 22px leaves a little room for a font whose
+   letters run wider than the one this was measured against. Rewording it means measuring
+   again. Below 640px the panel is narrower and the text simply takes the lines it needs. */
+.manual-warning {
+  margin-top: 0.75rem;
+  color: #991b1b;
+  font-weight: 600;
+  font-size: 1.375rem;
+  line-height: 1.35;
+}
+
+/* The warning needs more room than a bare "checked in", so the panel grows to carry it,
+   and takes a barber pole border so that it is plainly a different thing from the ordinary
+   confirmation even before anybody reads it. The id beats Tailwind's own max-width and
+   border on the same element.
+
+   The stripes are two background layers rather than a border-image, because a
+   border-image ignores border-radius and would square off the panel's rounded corners.
+   The first layer is the plain white the panel is meant to be, clipped to the padding
+   box; the second is the stripe pattern, clipped to the border box, so it shows only in
+   the band the transparent border leaves for it. */
+#done-panel.done-panel--wide {
+  max-width: 34rem;
+  border: 9px solid transparent;
+  /* The inner curve of a border is its outer curve less the border width, so the panel's
+     usual 8px would leave the white inside square within a 9px band. A larger radius
+     keeps both edges of the stripe rounded. */
+  border-radius: 1.25rem;
+  background-color: transparent;
+  background-image:
+    linear-gradient(#fff, #fff),
+    repeating-linear-gradient(45deg, #991b1b 0 10px, #fff 10px 20px);
+  background-origin: padding-box, border-box;
+  background-clip: padding-box, border-box;
+}
+
+@media (min-width: 640px) {
+  #done-panel.done-panel--wide {
+    max-width: 34rem;
+    padding: 2rem;
+  }
+}
+
+/* ================= Switching camera ================= */
+
+/* Directly under the camera button, and only there at all when the device turns out to
+   have more than one camera to switch between. */
+.camera-switch {
+  position: fixed;
+  top: 62px;
+  left: 10px;
+  z-index: 100;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 9999px;
+  background: #fff;
+  color: #6b7280;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+}
+
+.camera-switch svg {
+  width: 22px;
+  height: 22px;
+}
+
+.camera-switch:hover {
+  color: #374151;
+}
+
+.camera-switch:focus-visible {
+  outline: 2px solid #4f46e5;
+  outline-offset: 2px;
+}
+
+/* ================= Fitting other screens ================= */
+
+/* The sign-in card is a fixed 448px in the middle of the window, so the room left beside
+   it for the camera preview is exactly (window - 448) / 2, less the margins. Saying so
+   directly beats picking widths per breakpoint: it is continuous, so there is no window
+   width at which the preview is suddenly sitting on the Sign in button, and the cap stops
+   it growing silly on a large monitor. */
+@media (min-width: 820px) {
+  .scanner-cam {
+    width: calc((100vw - 448px) / 2 - 20px);
+    max-width: 430px;
+  }
+}
+
+/* From here down the preview is beside the card rather than under it, so it no longer has
+   to clear the buttons that used to sit at the foot of the screen. */
+
+
+/* A short window puts the foot of the sign-in card level with the bottom left stack, so
+   the stack narrows to fit in the margin beside it. */
+@media (min-width: 900px) and (max-height: 700px) {
+  .pending-button,
+  button.more-options-button {
+    width: 200px;
+    font-size: 13px;
+  }
+}
+
+/* Phones, and tablets held upright. More Options becomes an icon in the opposite corner
+   from the camera button, the send button tucks under it, and the page starts below them
+   both rather than behind them. */
+@media (max-width: 899px) {
+  button.more-options-button {
+    top: 10px;
+    right: 10px;
+    bottom: auto;
+    left: auto;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .more-options-button__icon {
+    display: block;
+    width: 24px;
+    height: 24px;
+  }
+
+  .more-options-button__label {
+    display: none;
+  }
+
+  /* Auto width with nowrap means the button is exactly as wide as its wording, so the
+     wording cannot wrap however short the count makes it. 13px puts "999 Pending, Tap to
+     Send" at 188px, which fits across even a 320px screen. */
+  .pending-button {
+    top: 64px;
+    right: 10px;
+    bottom: auto;
+    left: auto;
+    width: auto;
+    white-space: nowrap;
+    font-size: 13px;
+    padding: 8px 14px;
+  }
+
+  .pending-full {
+    display: none;
+  }
+
+  .pending-compact {
+    display: inline;
+  }
+
+  #page {
+    padding-top: 64px;
+  }
+
+  body.sending-available #page {
+    padding-top: 130px;
+  }
+
+  .camera-switch {
+    top: 10px;
+    left: 62px;
+  }
+
+  /* A smaller badge, to buy back the height the preview needs */
+  #page img {
+    height: 3rem;
+  }
+}
+
+/* Below that the card fills the width and there is nothing beside it to sit in. Floating
+   the preview over the foot of the page cannot be made to work there: the card and the
+   preview together are taller than the screen, so whatever is reserved for one is taken
+   from the other and the Sign in button ends up behind the picture. So on a phone the
+   preview stops floating and takes the top of the page in the flow, which is where the
+   attention is anyway. Nothing has to be reserved around it and nothing can land on it. */
+@media (max-width: 819px) {
+  .scanner-cam {
+    position: static;
+    width: auto;
+    margin: 0 auto 12px;
+  }
+
+  /* Full width is too much on a near-square window: a 16:9 picture across 780px is 440px
+     tall, which is most of the screen and pushes Sign in off the bottom. The cap is not a
+     share of the height but what is left of it once the form has had the ~460px it needs,
+     turned back into a width through the frame's own shape. On a tall phone the figure
+     comes out larger than the screen is wide, so nothing is taken away there. */
+  body.camera-on .scanner-cam {
+    max-width: calc((100vh - 460px) * var(--cam-aspect, 1.4));
+  }
+
+  /* The send button in the corner wants its own 60px kept clear, and it has to come out
+     of the preview's share - otherwise the card grows down into it. Only while the button
+     is actually showing, so an ordinary phone keeps the larger picture. */
+  body.camera-on.sending-available .scanner-cam {
+    max-width: calc((100vh - 520px) * var(--cam-aspect, 1.4));
+  }
+
+  /* The page follows the preview rather than clearing fixed furniture above it. The two
+     camera buttons and the menu float over the picture, which is what they are for. */
+  body.camera-on #page {
+    padding-top: 12px;
+    padding-bottom: 2rem;
+  }
+
+  /* With the preview at the top, the foot of the screen is free, so the send button goes
+     down there: out of the way of the picture, and under the thumb. */
+  .pending-button {
+    top: auto;
+    bottom: 10px;
+    right: 10px;
+  }
+
+  /* Which also means the top strip is only ever the buttons, whether or not the send
+     button is showing - it is no longer up there to be cleared. */
+  body.sending-available #page {
+    padding-top: 64px;
+    padding-bottom: 60px;
+  }
+
+  body.camera-on.sending-available #page {
+    padding-top: 12px;
+    padding-bottom: 60px;
+  }
+}
+
+/* ================= Small screens ================= */
+
+/* Headings and the badge give up some size where there is not much to go round. */
+@media (max-width: 480px) {
+  #page h2 {
+    font-size: 1.5rem;
+    line-height: 1.9rem;
+  }
+}
+
+/* A short window cannot afford three stacked rows for one six-figure number, so the CAPID
+   box and the Sign in button share a line. Only here: on anything taller they stay as
+   they were, which is easier to hit and reads better. */
+@media (max-height: 620px) {
+  #page img {
+    height: 2.5rem;
+  }
+
+  #page h2 {
+    font-size: 1.5rem;
+    line-height: 1.9rem;
+    margin-top: 0.75rem;
+  }
+
+  #sign-in-fields {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.5rem;
+  }
+
+  /* Tailwind's space-y-6 puts a margin between the rows; side by side they want none.
+     The id outranks it without having to shout. */
+  #sign-in-fields > * {
+    margin-top: 0;
+  }
+
+  .sign-in-field {
+    flex: 1 1 auto;
+  }
+
+  .sign-in-spacer {
+    display: none;
+  }
+
+  .sign-in-action {
+    flex: 0 0 auto;
+  }
+
+  .sign-in-action button {
+    width: auto;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+    white-space: nowrap;
+  }
+}
+
+/* With the form on one line it needs far less room, so the preview may have the rest */
+@media (max-width: 819px) and (max-height: 620px) {
+  body.camera-on .scanner-cam {
+    max-width: calc((100vh - 290px) * var(--cam-aspect, 1.4));
+  }
+
+  body.camera-on.sending-available .scanner-cam {
+    max-width: calc((100vh - 350px) * var(--cam-aspect, 1.4));
+  }
 }
