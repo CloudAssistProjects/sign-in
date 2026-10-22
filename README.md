@@ -84,6 +84,20 @@ Below 820px - phones, and the smaller tablets upright - the preview stops floati
 
 It does not take the full width there, though, because on a near-square window it would take most of the height with it - a 16:9 picture across 780px is 440px tall, and Sign in goes off the bottom. Its limit is what is left of the height once the form has had the room it needs, turned back into a width through the frame's own shape, which camera mode hands to the stylesheet as `--cam-aspect` when the first frame arrives. On a tall phone that figure comes out wider than the screen, so nothing is taken away; on a square one it is what keeps the form on screen.
 
+On a phone the CAPID box is marked `inputmode="none"`, which keeps it focusable but stops the phone throwing its own keyboard over the page, and an on-screen keypad stands in for it. A keyboard offering a whole alphabet is no use for a six-figure number and covers half the screen the moment anybody touches the field. The keypad is only up while the field is being used, and it carries the Sign in button, so a number can be keyed in and submitted without the layout giving up any room the rest of the time. It falls back to the phone's own keyboard on anything 900px or wider, where a real keyboard is usually at hand.
+
+Held upright it is the shape of a telephone, which needs no explaining. On its side there is only about 390px of height to work with, so it lies down into two rows of five with delete and Sign in stacked in a sixth column - which also keeps delete away from the 9 and 0 where it would be caught by mistake.
+
+    portrait            landscape
+    1   2   3           1  2  3  4  5  | del
+    4   5   6           6  7  8  9  0  | Sign in
+    7   8   9
+    del 0   Sign in
+
+Measured on an iPhone 15, 15 Pro and 15 Pro Max, in both orientations and both with and without Safari's chrome: the keypad is 249px upright and 107px on its side, keys never fall below 120x52 and 126x42, and the shortest case still leaves 236px above it for the field.
+
+A paired barcode scanner is unaffected by any of this. `inputmode` governs only the on-screen keyboard; a scanner sends real key events, which arrive as they always did. Keypad taps produce no key events at all, which is why they read as manual entry - correctly, since that is what they are.
+
 A window under 620px tall puts the CAPID box and the Sign in button on one line and shrinks the badge and heading, which is what makes a phone on its side usable.
 
 The arrangement was checked by computing the position of every element against the sign-in card at 40 window sizes, from 1024x768 up to 1920x1080, every iPad from the original to the 12.9in Pro in both orientations, the Fire 7, HD 8 and HD 10, five phones, and eight near-square and half-width windows - each with camera mode on and off, and with the send button shown and hidden. Nothing overlaps, and nothing is pushed off screen, in any of them.

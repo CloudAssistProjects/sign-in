@@ -6,8 +6,8 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Civil Air Patrol - Checkin</title>
-    <script src="index.js?v=2026-10-22-10"></script>
-    <link href="optional.css?v=2026-10-22-10" rel="stylesheet" />
+    <script src="index.js?v=2026-10-22-11"></script>
+    <link href="optional.css?v=2026-10-22-11" rel="stylesheet" />
     <link href="style.css" rel="stylesheet" />
     <!-- <script src="https://cdn.tailwindcss.com"></script> -->
 
@@ -197,8 +197,26 @@
             </div>
         </div>
     </div>
+    <!-- Stands in for the phone's own keyboard, which is suppressed on narrow screens -->
+    <div class="keypad" id="keypad" hidden>
+        <div class="keypad__grid">
+            <button type="button" class="keypad__key" data-key="1">1</button>
+            <button type="button" class="keypad__key" data-key="2">2</button>
+            <button type="button" class="keypad__key" data-key="3">3</button>
+            <button type="button" class="keypad__key" data-key="4">4</button>
+            <button type="button" class="keypad__key" data-key="5">5</button>
+            <button type="button" class="keypad__key" data-key="6">6</button>
+            <button type="button" class="keypad__key" data-key="7">7</button>
+            <button type="button" class="keypad__key" data-key="8">8</button>
+            <button type="button" class="keypad__key" data-key="9">9</button>
+            <button type="button" class="keypad__key keypad__key--back" data-key="back"
+                aria-label="Delete last digit">&#9003;</button>
+            <button type="button" class="keypad__key" data-key="0">0</button>
+            <button type="button" class="keypad__key keypad__key--go" data-key="go">Sign in</button>
+        </div>
+    </div>
     <script src="zxing.libs.js"></script>
-    <script src="barcode.js?v=2026-10-22-10"></script>
+    <script src="barcode.js?v=2026-10-22-11"></script>
     <script>
         document.body.onclick = function (e) {
             if (window.optionsModalState && e.target.id == "outer") {

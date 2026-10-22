@@ -87,6 +87,82 @@ function submitTyped() {
     submit();
 }
 
+/* ---- The on-screen keypad ----
+
+   On a phone the field is marked inputmode="none", which keeps it focusable but stops the
+   phone throwing its own keyboard up over the page, and this stands in for it. A keyboard
+   that offers a whole alphabet is no use for a six figure number, and it would cover half
+   the screen the moment anybody touched the field. A paired scanner is unaffected either
+   way: inputmode governs only the on-screen keyboard, and a scanner sends real keys. */
+var narrowScreen = window.matchMedia("(max-width: 899px)");
+
+function applyKeypadMode() {
+    var field = document.getElementById("CAPID");
+    if (!field) { return; }
+    if (narrowScreen.matches) {
+        field.setAttribute("inputmode", "none");
+    } else {
+        field.removeAttribute("inputmode"); // A real keyboard is at hand, so let it be used
+        closeKeypad();
+    }
+}
+
+function openKeypad() {
+    var keypad = document.getElementById("keypad");
+    if (!narrowScreen.matches || !keypad || !keypad.hidden) { return; }
+    keypad.hidden = false;
+    document.body.classList.add("keypad-open");
+    /* The keypad covers the foot of the screen, so make sure the field it is typing into
+       is not one of the things underneath it. */
+    var field = document.getElementById("CAPID");
+    if (field && field.scrollIntoView) { field.scrollIntoView({ block: "center" }); }
+}
+
+function closeKeypad() {
+    var keypad = document.getElementById("keypad");
+    if (!keypad || keypad.hidden) { return; }
+    keypad.hidden = true;
+    document.body.classList.remove("keypad-open");
+}
+
+function keypadPress(key) {
+    var field = document.getElementById("CAPID");
+    if (!field) { return; }
+    if (key === "go") { closeKeypad(); submitTyped(); return; }
+    if (key === "back") { field.value = String(field.value).slice(0, -1); return; }
+    if (String(field.value).length < 7) { field.value = String(field.value) + key; }
+}
+
+function wireKeypad() {
+    var field = document.getElementById("CAPID");
+    var keypad = document.getElementById("keypad");
+    if (!field || !keypad) { return; }
+
+    applyKeypadMode();
+    if (narrowScreen.addEventListener) {
+        narrowScreen.addEventListener("change", applyKeypadMode);
+    } else if (narrowScreen.addListener) {
+        narrowScreen.addListener(applyKeypadMode); // Older Safari
+    }
+
+    field.addEventListener("focus", openKeypad);
+    field.addEventListener("click", openKeypad);
+
+    /* Pressing a key must not take the focus off the field, or the caret goes away and
+       the next tap on the field counts as arriving from nowhere. */
+    keypad.addEventListener("mousedown", function (event) { event.preventDefault(); });
+    keypad.addEventListener("click", function (event) {
+        var key = event.target.getAttribute && event.target.getAttribute("data-key");
+        if (key) { keypadPress(key); }
+    });
+
+    document.addEventListener("click", function (event) { // Anywhere else puts it away
+        if (keypad.hidden || event.target === field) { return; }
+        if (event.target.closest && event.target.closest("#keypad")) { return; }
+        closeKeypad();
+    });
+}
+
 /* Utility function to get today's date in local timezone */
 function today() { return new Date().toLocaleDateString().split('T')[0]; }
 
@@ -280,6 +356,8 @@ window.onload = function () { // When the page loads
     setCameraToggleUI(window.cameraMode) // Show camera mode as it was left last time
     setManualWarningUI(localStorage.getItem("warnManualEntry") === "true") // And this one
     setSendButtonUI(localStorage.getItem("showSendButton") === "true")      // And this one
+
+    wireKeypad() // Stand in for the phone's keyboard on the CAPID field
 
     /* Collect input at the document level so that a scan is never lost to whatever
        happens to have focus. The CAPID field doubles as the buffer, so a scan reaches

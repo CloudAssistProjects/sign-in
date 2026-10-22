@@ -642,3 +642,109 @@ button.more-options-button:focus-visible {
     max-width: calc((100vh - 350px) * var(--cam-aspect, 1.4));
   }
 }
+
+/* ================= The on-screen keypad ================= */
+
+/* A phone's own keyboard is suppressed on the CAPID field and this stands in for it, so
+   that a number can be keyed in without a strip of the screen being taken by a keyboard
+   the station has no other use for. It is only ever up while the field is being used. */
+.keypad {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 101;
+  padding: 8px;
+  background: #f3f4f6;
+  border-top: 1px solid #d1d5db;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.18);
+}
+
+.keypad[hidden] {
+  display: none;
+}
+
+/* Portrait: the shape of a telephone, which needs no explaining */
+.keypad__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.keypad__key {
+  height: 52px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  color: #111827;
+  font-size: 22px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.keypad__key:active {
+  background: #e5e7eb;
+}
+
+.keypad__key--back {
+  font-size: 20px;
+}
+
+.keypad__key--go {
+  background: #1e3a8a;
+  border-color: #1e3a8a;
+  color: #fff;
+  font-size: 15px;
+}
+
+.keypad__key--go:active {
+  background: #1d4ed8;
+}
+
+/* Landscape on a phone has about 390px of height in total, so the keypad lies down into
+   two rows across six columns and takes a little over a hundred of them. */
+@media (orientation: landscape) and (max-height: 520px) {
+  /* Five columns of digits with the two controls stacked in a sixth, so the numbers still
+     read 1-5 then 6-0 and the delete key is not sitting between 9 and 0 to be caught by
+     mistake. The digits place themselves around the two that are pinned. */
+  .keypad__grid {
+    grid-template-columns: repeat(5, 1fr) 1.4fr;
+    gap: 6px;
+    max-width: none;
+  }
+
+  .keypad__key--back {
+    grid-column: 6;
+    grid-row: 1;
+  }
+
+  .keypad__key--go {
+    grid-column: 6;
+    grid-row: 2;
+  }
+
+  .keypad__key {
+    height: 42px;
+    font-size: 19px;
+  }
+
+  .keypad__key--go {
+    font-size: 14px;
+  }
+}
+
+/* While the keypad is up the page keeps its foot clear of it, so the field being typed
+   into is never one of the things hidden underneath. */
+body.keypad-open #page {
+  padding-bottom: 270px;
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  body.keypad-open #page {
+    padding-bottom: 130px;
+  }
+}
