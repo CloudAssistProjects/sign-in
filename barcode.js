@@ -381,11 +381,12 @@ function showFrameInfo(vw, vh, crop) {
     var vid = cameraVideo.getBoundingClientRect();
     if (!box.width) { return; }
     cameraStatus.textContent =
-        "frame " + vw + "x" + vh
-        + "   crop " + Math.round(crop.w) + "x" + Math.round(crop.h)
-        + "   box " + Math.round(box.width) + "x" + Math.round(box.height)
-        + "   want " + Math.round(box.width * vw / crop.w)
-        + "   got " + Math.round(vid.width) + "x" + Math.round(vid.height);
+        "box " + Math.round(box.width) + "x" + Math.round(box.height)
+        + "  vid " + Math.round(vid.width) + "x" + Math.round(vid.height)
+        + "  want " + Math.round(box.width * vw / crop.w)
+        + "  off want " + Math.round(-crop.x / crop.w * box.width)
+        + "," + Math.round(-crop.y / crop.h * box.height)
+        + " got " + cameraVideo.offsetLeft + "," + cameraVideo.offsetTop;
 }
 
 /* What of the camera frame is worth showing: the card target and a border around it,
@@ -414,12 +415,22 @@ function previewCrop(rect, vw, vh) {
 
 /* The video is laid out against the crop rather than the host, so the cropped-away part
    hangs outside the host and is clipped by its overflow. Everything else is placed in the
-   same terms, which keeps the target boxes over the things they are pointing at. */
+   same terms, which keeps the target boxes over the things they are pointing at.
+
+   The video is placed in pixels worked out from the box's measured size, not in
+   percentages of it. A percentage top resolves against the containing block's height, and
+   this box has no height of its own - it gets one from aspect-ratio - which left the
+   picture correctly sized but showing the wrong part of the frame. The boxes either side
+   of this are percentages still, and are fine: they are small positive ones, and they
+   were landing correctly throughout. */
 function placeOverlay(rect, crop, vw, vh) {
-    if (cameraVideo) {
-        cameraVideo.style.width = (vw / crop.w * 100) + "%";
-        cameraVideo.style.left = (-crop.x / crop.w * 100) + "%";
-        cameraVideo.style.top = (-crop.y / crop.h * 100) + "%";
+    if (cameraVideo && cameraHost) {
+        var box = cameraHost.getBoundingClientRect();
+        if (box.width) {
+            cameraVideo.style.width = (box.width * vw / crop.w) + "px";
+            cameraVideo.style.left = (-crop.x / crop.w * box.width) + "px";
+            cameraVideo.style.top = (-crop.y / crop.h * box.height) + "px";
+        }
     }
     var parts = [cameraGuide, cameraWork, cameraZones], i;
     for (i = 0; i < parts.length; i++) {
