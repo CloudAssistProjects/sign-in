@@ -27,9 +27,6 @@ window.cameraOcrEveryMs = 250;      // How often to look, if the last look has f
 window.cameraOcrAgreeMs = 1500;     // How long two readings have to agree within
 window.cameraOcrBase = "ocr/";      // Local folder holding the text reader - never a CDN
 window.cameraDebug = false;         // Log a line a second about what the camera can see
-window.cameraShowFrameInfo = true;  // TEMPORARY, for debugging: print the frame, crop and
-                                    // rendered sizes under the target, where a phone can
-                                    // be read without a console
 
 /* Where the Data Matrix sits on the front of the card, as fractions of the card. ZXing's
    JavaScript reader only finds it when handed a tight crop, so we cut a small window at
@@ -111,9 +108,10 @@ var cameraWork = null, cameraWorkCtx = null;     // Card crop, used both to deco
 var cameraTimer = null, cameraGuide = null, cameraZones = null;
 var cameraRead = null, readTimer = null;         // The number shown back after a read
 var cameraHost = null, cameraShown = false;      // The preview box, and whether it is up yet
-var cameraStatus = null;                         // TEMPORARY, for debugging the above
+var cameraBlur = null, cameraBlurCtx = null;     // The blurred background, drawn not laid out
+var previewShape = "";                           // The shape the box was last given
 var nativeDetector = null, nativeChecked = false;
-var cameraDevices = [], cameraRetried = false;   // The cameras on offer, once they can be named
+var cameraDevices = [];                          // Only to know whether there is a second one
 var zxingReader = null, zxingHints = null;
 var dmStep = 0;
 var lastReadAt = 0;                              // When the camera opened, or last read a card
@@ -371,26 +369,6 @@ function acceptScannedCode(code, source) {
 
 /* ================= The preview ================= */
 
-/* TEMPORARY, for debugging. The sizes this reports are the whole question: whether the
-   picture is being drawn at the width it was told to be, and whether the box it sits in
-   is the shape the crop asked for. A phone has no console worth reading, so it goes on
-   the screen, under the target where it covers nothing that matters. */
-function showFrameInfo(vw, vh, crop) {
-    if (!window.cameraShowFrameInfo || !cameraStatus || !cameraHost || !cameraVideo) { return; }
-    var box = cameraHost.getBoundingClientRect();
-    var vid = cameraVideo.getBoundingClientRect();
-    if (!box.width) { return; }
-    var want = box.width * vw / crop.w;
-    cameraStatus.textContent =
-        "f " + vw + "x" + vh
-        + "  box " + Math.round(box.width) + "x" + Math.round(box.height)
-        + "  vid " + Math.round(vid.width) + "x" + Math.round(vid.height)
-        + "/" + Math.round(want) + "x" + Math.round(want * vh / vw)
-        + "  off " + cameraVideo.offsetLeft + "," + cameraVideo.offsetTop
-        + "/" + Math.round(-crop.x / crop.w * box.width)
-        + "," + Math.round(-crop.y / crop.h * box.height);
-}
-
 /* What of the camera frame is worth showing: the card target and a border around it,
    rather than the whole frame. A phone hands over a tall portrait picture with the card a
    landscape strip across the middle; showing all of that wastes most of the screen on
@@ -415,39 +393,62 @@ function previewCrop(rect, vw, vh) {
     };
 }
 
-/* The video is laid out against the crop rather than the host, so the cropped-away part
-   hangs outside the host and is clipped by its overflow. Everything else is placed in the
-   same terms, which keeps the target boxes over the things they are pointing at.
+/* The box takes the crop's shape. Applied before anything is measured against it, and
+   whenever it changes - a frame's dimensions are not fixed for the life of a stream,
+   whatever the comment that used to sit here claimed. */
+function applyPreviewShape(crop) {
+    if (!cameraHost) { return; }
+    var shape = (crop.w / crop.h).toFixed(4);
+    if (shape === previewShape) { return; }
+    previewShape = shape;
+    cameraHost.style.aspectRatio = shape;
+    /* Handed to the stylesheet so it can work back from a height it can spare to the
+       width that produces it. Only the frame knows the shape; only CSS knows the room. */
+    cameraHost.style.setProperty("--cam-aspect", shape);
+}
 
-   The video is placed in pixels worked out from the box's measured size, not in
-   percentages of it. A percentage top resolves against the containing block's height, and
-   this box has no height of its own - it gets one from aspect-ratio - which left the
-   picture correctly sized but showing the wrong part of the frame. The boxes either side
-   of this are percentages still, and are fine: they are small positive ones, and they
-   were landing correctly throughout. */
-function placeOverlay(rect, crop, vw, vh) {
-    if (cameraVideo && cameraHost) {
-        var box = cameraHost.getBoundingClientRect();
-        if (box.width) {
-            /* Height is given as well as width, rather than left to follow the frame's
-               own ratio. A video is laid out with object-fit: contain by default, so the
-               moment the element's box and the frame disagree - and height:auto lags what
-               the stream is actually sending - the picture is letterboxed inside its own
-               element, leaving bands while every measurement still looks right. Sized
-               from the same frame figures the crop came from, and filled rather than
-               contained, the picture and the element are the same thing. */
-            cameraVideo.style.width = (box.width * vw / crop.w) + "px";
-            cameraVideo.style.height = (box.width * vw / crop.w * vh / vw) + "px";
-            cameraVideo.style.left = (-crop.x / crop.w * box.width) + "px";
-            cameraVideo.style.top = (-crop.y / crop.h * box.height) + "px";
-        }
+/* The blurred background is drawn, not laid out.
+
+   It used to be the video element itself, shown through CSS: its own intrinsic size, its
+   own object-fit, and offsets against a box whose height comes from a ratio. That is a
+   second, independent account of where the picture goes, running alongside the drawImage
+   that produces the sharp windows - and the two could disagree. They did, variously, as
+   letterboxed bands down the sides, as a stretched picture, and as the right picture in
+   the wrong place, all while every figure that could be measured read correctly.
+
+   Drawing the background from the same drawImage, with the same crop, removes the second
+   account: there is now one description of where the picture goes and everything uses it.
+   The video element remains as the thing being decoded, but is never shown, so it has no
+   layout left to get wrong. A little more than the crop is drawn, so the soft edge a blur
+   leaves falls outside the box rather than inside it. */
+function placePreview(rect, crop, vw, vh) {
+    if (!cameraHost || !cameraBlur) { return; }
+    var box = cameraHost.getBoundingClientRect();
+    if (!box.width) { return; }
+    var sx = box.width / crop.w, sy = box.height / crop.h;
+
+    /* As much frame as there is to spare outside the crop, up to what the blur needs.
+       previewCrop always leaves at least the blur's own allowance there. */
+    var spare = Math.min(crop.x, crop.y, vw - crop.x - crop.w, vh - crop.y - crop.h);
+    var over = Math.max(0, Math.min(spare, window.cameraBlurPx * 2 / Math.max(0.0001, sx)));
+    var sw = crop.w + over * 2, sh = crop.h + over * 2;
+
+    var bw = 360, bh = Math.max(1, Math.round(bw * sh / sw));
+    if (cameraBlur.width !== bw || cameraBlur.height !== bh) {
+        cameraBlur.width = bw; cameraBlur.height = bh;
     }
+    cameraBlurCtx.drawImage(cameraVideo, crop.x - over, crop.y - over, sw, sh, 0, 0, bw, bh);
+    cameraBlur.style.width = (sw * sx) + "px";
+    cameraBlur.style.height = (sh * sy) + "px";
+    cameraBlur.style.left = (-over * sx) + "px";
+    cameraBlur.style.top = (-over * sy) + "px";
+
     var parts = [cameraGuide, cameraWork, cameraZones], i;
     for (i = 0; i < parts.length; i++) {
-        parts[i].style.left = ((rect.x - crop.x) / crop.w * 100) + "%";
-        parts[i].style.top = ((rect.y - crop.y) / crop.h * 100) + "%";
-        parts[i].style.width = (rect.w / crop.w * 100) + "%";
-        parts[i].style.height = (rect.h / crop.h * 100) + "%";
+        parts[i].style.left = ((rect.x - crop.x) * sx) + "px";
+        parts[i].style.top = ((rect.y - crop.y) * sy) + "px";
+        parts[i].style.width = (rect.w * sx) + "px";
+        parts[i].style.height = (rect.h * sy) + "px";
     }
 }
 
@@ -474,18 +475,11 @@ function cameraPass() {
     if (cameraWork.width !== workW) { cameraWork.width = workW; cameraWork.height = workH; }
     cameraWorkCtx.drawImage(cameraVideo, rect.x, rect.y, rect.w, rect.h, 0, 0, workW, workH);
     var crop = previewCrop(rect, vw, vh);
-    placeOverlay(rect, crop, vw, vh);
-    showFrameInfo(vw, vh, crop);
+    applyPreviewShape(crop);        // Before anything is measured against the box
+    placePreview(rect, crop, vw, vh);
 
-    if (!cameraShown && cameraHost) {   // Sized from a real frame now, so it can be seen
+    if (!cameraShown && cameraHost) {   // Drawn from a real frame now, so it can be seen
         cameraShown = true;
-        /* The frame dimensions are fixed for the life of the stream, so pinning the box
-           to them here means it is the right shape the moment it appears and never
-           changes shape afterwards. */
-        cameraHost.style.aspectRatio = crop.w + " / " + crop.h;
-        /* Handed to the stylesheet so it can work back from a height it can spare to the
-           width that produces it. Only the frame knows the shape; only CSS knows the room. */
-        cameraHost.style.setProperty("--cam-aspect", (crop.w / crop.h).toFixed(4));
         cameraHost.style.visibility = "";
         cameraHost.style.opacity = "";
     }
@@ -529,26 +523,30 @@ function cameraConstraints() {
     /* "ideal" rather than "min", so an old tablet that cannot manage this still opens at
        whatever it can do. Everything downstream measures the frame it actually returns.
 
-       A phone or tablet has a camera on each side. Whichever was last chosen is asked for
-       by name; failing that the front one, since the member is holding their card towards
-       the screen and wants to see what the camera sees. */
-    var chosen = localStorage.getItem("cameraDeviceId");
-    var video = { width: { ideal: window.cameraWidth }, height: { ideal: window.cameraHeight } };
-    if (chosen) { video.deviceId = { exact: chosen }; } else { video.facingMode = "user"; }
-    return { audio: false, video: video };
+       A side is asked for rather than a particular camera. iOS lists every lens and every
+       combination of them - front, back, ultra wide, telephoto, dual, triple - seven or
+       eight devices, most of which are no use for reading a card held at arm's length.
+       Asking for a side lets the browser pick the sensible lens on it, and leaves the
+       button with two states instead of eight. */
+    var facing = localStorage.getItem("cameraFacing") === "environment" ? "environment" : "user";
+    return {
+        audio: false,
+        video: {
+            width: { ideal: window.cameraWidth },
+            height: { ideal: window.cameraHeight },
+            facingMode: { ideal: facing }
+        }
+    };
 }
 
-/* The browser will not name a camera until it has handed one over, so the list is only
-   worth taking once a stream is running. One camera means nothing to switch between, and
-   no button to do it with. */
+/* The browser will not say how many cameras there are until it has handed one over, so
+   the count is only worth taking once a stream is running. One camera means there is no
+   other side to turn to, and no button to do it with. */
 function listCameras() {
     if (!navigator.mediaDevices.enumerateDevices) { return; }
     navigator.mediaDevices.enumerateDevices().then(function (devices) {
         cameraDevices = devices.filter(function (d) { return d.kind === "videoinput"; });
         showSwitchButton(cameraDevices.length > 1);
-        if (cameraDevices.length > 1) {
-            console.log("Camera: " + cameraDevices.length + " cameras on this device");
-        }
     }).catch(function () { });
 }
 
@@ -557,26 +555,12 @@ function showSwitchButton(on) {
     if (button) { button.style.display = on ? "flex" : "none"; }
 }
 
-/* Note which camera was actually opened, so that "the next one" means something the first
-   time the button is pressed. */
-function rememberCameraInUse(stream) {
-    var track = stream.getVideoTracks()[0];
-    var settings = track && track.getSettings ? track.getSettings() : null;
-    if (settings && settings.deviceId) { localStorage.setItem("cameraDeviceId", settings.deviceId); }
-}
-
-/* Move to the next camera and reopen on it. The choice is remembered, so a tablet set up
-   to read cards with its back camera comes back up that way. */
+/* Turn the card round: front camera to back and back again. Remembered, so a tablet set
+   up to read cards with its back camera comes back up on it. */
 function switchCamera() {
-    if (cameraDevices.length < 2) { return; }
-    var current = localStorage.getItem("cameraDeviceId") || "";
-    var at = -1, i;
-    for (i = 0; i < cameraDevices.length; i++) {
-        if (cameraDevices[i].deviceId === current) { at = i; }
-    }
-    var next = cameraDevices[(at + 1) % cameraDevices.length];
-    localStorage.setItem("cameraDeviceId", next.deviceId);
-    console.log("Camera: switching to " + (next.label || "camera " + ((at + 2) % (cameraDevices.length + 1))));
+    var facing = localStorage.getItem("cameraFacing") === "environment" ? "user" : "environment";
+    localStorage.setItem("cameraFacing", facing);
+    console.log("Camera: switching to the " + (facing === "user" ? "front" : "back") + " camera");
     stopCamera();
     startCamera();
 }
@@ -652,11 +636,19 @@ function buildPreview(host) {
        the preview cannot be undone by a stale copy of the CSS sitting in a cache. */
     host.style.visibility = "hidden";
     host.style.opacity = "0";
+    previewShape = "";
+    /* Kept for the decoder to read frames out of, never shown. */
     cameraVideo = document.createElement("video");
     cameraVideo.setAttribute("playsinline", "");
     cameraVideo.muted = true;
-    cameraVideo.style.filter = "blur(" + window.cameraBlurPx + "px)";
+    cameraVideo.className = "scanner-source";
     host.appendChild(cameraVideo);
+
+    cameraBlur = document.createElement("canvas");
+    cameraBlur.className = "scanner-blur";
+    cameraBlur.style.filter = "blur(" + window.cameraBlurPx + "px)";
+    host.appendChild(cameraBlur);
+    cameraBlurCtx = cameraBlur.getContext("2d");
 
     cameraGuide = document.createElement("div");
     cameraGuide.className = "scanner-guide";
@@ -664,11 +656,6 @@ function buildPreview(host) {
     guideLabel.className = "scanner-guide__label";
     guideLabel.textContent = "Line Up Card Here (Front or Back)";
     cameraGuide.appendChild(guideLabel);
-    /* TEMPORARY, for debugging: what the camera says the frame is, what that crops to, and
-       what the box and the picture inside it actually came out as. */
-    cameraStatus = document.createElement("span");
-    cameraStatus.className = "scanner-guide__status";
-    cameraGuide.appendChild(cameraStatus);
     host.appendChild(cameraGuide);
 
     /* The whole target is drawn, but only the zones are let through, so the sharp picture
@@ -748,30 +735,14 @@ function startCamera() {
     try {
         navigator.mediaDevices.getUserMedia(cameraConstraints()).then(function (stream) {
             window.cameraStream = stream;
-            rememberCameraInUse(stream);
             cameraVideo.srcObject = stream;
             return cameraVideo.play();
         }).then(function () {
             window.cameraStarted = true;
-            cameraRetried = false;
             console.log("Camera mode started at " + cameraVideo.videoWidth + "x" + cameraVideo.videoHeight);
             listCameras();
             schedule(100);
-        }).catch(function (err) {
-            /* The remembered camera belongs to whatever machine it was chosen on. Asked
-               for by name somewhere else, it simply is not there - so forget it and open
-               whatever this machine does have, rather than refusing to start at all. */
-            if (!cameraRetried && localStorage.getItem("cameraDeviceId")
-                && (err.name === "OverconstrainedError" || err.name === "NotFoundError")) {
-                cameraRetried = true;
-                localStorage.removeItem("cameraDeviceId");
-                console.log("Camera: the camera last used is not on this device, opening another");
-                stopCamera();
-                startCamera();
-                return;
-            }
-            cameraFailed(err);
-        });
+        }).catch(cameraFailed);
     } catch (err) {
         cameraFailed(err);
     }
@@ -787,7 +758,8 @@ function stopCamera() {
     window.cameraStarted = false;
     showSwitchButton(false);
     cameraVideo = null; cameraGuide = null; cameraWork = null; cameraWorkCtx = null;
-    cameraZones = null; cameraRead = null; cameraStatus = null;
+    cameraZones = null; cameraRead = null;
+    cameraBlur = null; cameraBlurCtx = null; previewShape = "";
     var host = document.getElementsByClassName("scanner-cam")[0];
     if (host) {
         host.innerHTML = "";

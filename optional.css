@@ -50,10 +50,6 @@ div[role="dialog"] {
     border-radius:17px;
   }
 
-  /* Keep the camera picture inside its corner box whatever resolution the camera gives */
-  .scanner-cam canvas {
-    height: auto;
-  }
   
   .scanner-cam--scanned {
     border-color: green;
@@ -161,24 +157,24 @@ button.more-options-button:focus-visible {
 
 /* The camera picture is always blurred. Scaled up a little because a CSS blur goes
    transparent at the edges, which would otherwise show as a soft frame. */
-/* Only the part of the frame worth looking at is shown. placeOverlay sizes and offsets
-   the video so the card target and its border fill the box; the rest hangs outside and is
-   clipped. The blurred edges of the picture fall outside too, which is what the old
-   scale(1.08) was for. */
+/* The video is never shown - it is only what frames are read out of. Kept in the layout
+   at a pixel rather than display:none, because a display:none video can stop decoding in
+   some browsers and drawImage would then have nothing to copy. */
 .scanner-cam video {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* What is actually seen: the crop, drawn here each pass from the same frame and the same
+   coordinates as the sharp windows, so the two cannot disagree. Sized and placed in
+   pixels by placePreview; the blur is set on it when the preview is built. */
+.scanner-blur {
   display: block;
   position: absolute;
-  /* A video is contained inside its element by default, so any disagreement between the
-     element's box and the frame's shape shows as bands down the sides rather than as a
-     wrong size. placeOverlay gives the element the frame's exact shape, so filling it
-     cannot distort anything - and if the two ever do disagree for a frame, a little
-     stretch is a better failure than a gap. */
-  object-fit: fill;
-  /* Cropping means showing the frame larger than the box it is seen through - 120% of it
-     for a 16:9 camera. Tailwind's reset caps every video at max-width:100%, which would
-     hold the picture to the width of the box while the offsets went on shifting it, so
-     the sharp windows would show one part of the scene and the blur around them another. */
-  max-width: none;
+  border-radius: 0;
 }
 
 /* The card-shaped target the member holds their card against */
@@ -204,23 +200,6 @@ button.more-options-button:focus-visible {
   color: #fff;
   white-space: nowrap;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
-  border-radius: 0;
-}
-
-/* TEMPORARY, for debugging: the figures sit under the target, in the border, matching the
-   caption above it for size and weight but in black so they read against the picture. */
-.scanner-guide__status {
-  position: absolute;
-  left: 50%;
-  bottom: -15px;
-  transform: translateX(-50%) scale(-1, 1);
-  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1;
-  color: #000;
-  white-space: nowrap;
-  text-shadow: 0 1px 3px rgba(255, 255, 255, 0.95);
   border-radius: 0;
 }
 

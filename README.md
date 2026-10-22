@@ -30,6 +30,8 @@ The preview shows the card target and a border around it, not the whole camera f
 
 The border is a fixed share of the card - `window.cameraPreviewBorder`, 3% of its width - rather than whatever each frame has going spare. Since the target is always the card's own proportions, a proportional border makes the preview a constant shape too: 4:3, 16:9, a portrait phone and a 2560x1440 webcam all come out at 1.534, so the layout around it never shifts with the camera. 3% is as much as every shape can supply; on a 16:9 camera the frame has only a little more than that above and below the target, and the crop has to stop short of the frame edge where a CSS blur goes transparent.
 
+The blurred background is drawn rather than laid out. The video element is kept only as the thing frames are read out of and is never shown; what you see is a canvas, drawn each pass from the same frame and the same crop coordinates that produce the sharp windows. Showing the video itself meant a second, independent account of where the picture goes - its intrinsic size, its object-fit, its offsets against a box whose height comes from a ratio - running alongside the first, and the two could disagree: as bands down the sides, as a stretched picture, or as the right picture in the wrong place, all while every figure that could be measured read correctly. With one description of where the picture goes, they cannot.
+
 The camera picture is blurred everywhere except inside those three boxes, which show through sharp. The blur is light enough to line a card up by and heavy enough that the preview is not a usable view of the room; the sharp patches are small, fixed, and between them show a barcode, a square and a six-digit number rather than a face. Turn the blur up with `window.cameraBlurPx` if the room needs it.
 
 Camera mode copes with whatever resolution the camera provides. A small frame is scaled up before decoding, which adds no detail but does let narrow Code 39 bars be resolved, and a large one is scaled down to keep the work the same everywhere. Both barcodes have been read in testing from 1920x1080 down to 480x360, and the printed number of a temporary card down to 640x480.
@@ -84,7 +86,7 @@ The sign-in card is a fixed 448px in the middle of the window, so how much room 
 
 What sits in front of what: the preview at 20, the buttons floating over it at 30, the keypad at 40, and modals at 50 above the lot. They had been picked one at a time, leaving the preview in front of the menu button and in front of the modals' own backdrops.
 
-The two camera buttons sit stacked in the top left corner at every size, the switch below the on/off toggle, and the switch is only there at all while the camera is running.
+The two camera buttons sit stacked in the top left corner at every size, the switch below the on/off toggle, and the switch is only there at all while the camera is running. It turns the picture round - front camera to back and back again - rather than stepping through the cameras one at a time: iOS lists every lens and every combination of them, seven or eight devices, most of which are no use for reading a card held at arm's length. Asking for a side lets the browser pick the sensible lens on it. The choice is remembered.
 
 Below 900px the card takes the whole width and there is nothing beside it. More Options collapses to a menu icon in the top right, opposite the camera buttons, and the send button tucks underneath it. A tablet held in landscape with the pixels to spare keeps the full layout; stood upright it gets the compact one.
 
