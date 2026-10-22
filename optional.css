@@ -168,7 +168,12 @@ button.more-options-button:focus-visible {
 .scanner-cam video {
   display: block;
   position: absolute;
-  height: auto;
+  /* A video is contained inside its element by default, so any disagreement between the
+     element's box and the frame's shape shows as bands down the sides rather than as a
+     wrong size. placeOverlay gives the element the frame's exact shape, so filling it
+     cannot distort anything - and if the two ever do disagree for a frame, a little
+     stretch is a better failure than a gap. */
+  object-fit: fill;
   /* Cropping means showing the frame larger than the box it is seen through - 120% of it
      for a 16:9 camera. Tailwind's reset caps every video at max-width:100%, which would
      hold the picture to the width of the box while the offsets went on shifting it, so

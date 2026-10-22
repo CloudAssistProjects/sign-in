@@ -380,13 +380,15 @@ function showFrameInfo(vw, vh, crop) {
     var box = cameraHost.getBoundingClientRect();
     var vid = cameraVideo.getBoundingClientRect();
     if (!box.width) { return; }
+    var want = box.width * vw / crop.w;
     cameraStatus.textContent =
-        "box " + Math.round(box.width) + "x" + Math.round(box.height)
+        "f " + vw + "x" + vh
+        + "  box " + Math.round(box.width) + "x" + Math.round(box.height)
         + "  vid " + Math.round(vid.width) + "x" + Math.round(vid.height)
-        + "  want " + Math.round(box.width * vw / crop.w)
-        + "  off want " + Math.round(-crop.x / crop.w * box.width)
-        + "," + Math.round(-crop.y / crop.h * box.height)
-        + " got " + cameraVideo.offsetLeft + "," + cameraVideo.offsetTop;
+        + "/" + Math.round(want) + "x" + Math.round(want * vh / vw)
+        + "  off " + cameraVideo.offsetLeft + "," + cameraVideo.offsetTop
+        + "/" + Math.round(-crop.x / crop.w * box.width)
+        + "," + Math.round(-crop.y / crop.h * box.height);
 }
 
 /* What of the camera frame is worth showing: the card target and a border around it,
@@ -427,7 +429,15 @@ function placeOverlay(rect, crop, vw, vh) {
     if (cameraVideo && cameraHost) {
         var box = cameraHost.getBoundingClientRect();
         if (box.width) {
+            /* Height is given as well as width, rather than left to follow the frame's
+               own ratio. A video is laid out with object-fit: contain by default, so the
+               moment the element's box and the frame disagree - and height:auto lags what
+               the stream is actually sending - the picture is letterboxed inside its own
+               element, leaving bands while every measurement still looks right. Sized
+               from the same frame figures the crop came from, and filled rather than
+               contained, the picture and the element are the same thing. */
             cameraVideo.style.width = (box.width * vw / crop.w) + "px";
+            cameraVideo.style.height = (box.width * vw / crop.w * vh / vw) + "px";
             cameraVideo.style.left = (-crop.x / crop.w * box.width) + "px";
             cameraVideo.style.top = (-crop.y / crop.h * box.height) + "px";
         }
