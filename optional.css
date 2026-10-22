@@ -20,6 +20,9 @@
   border-radius: 17px;
   transform: scale(-1, 1);
   transition: opacity 0.25s;
+  /* Replaced with the real crop once a frame has arrived; this only reserves a sensible
+     shape in the meantime, since the video inside is positioned and lends no height. */
+  aspect-ratio: 3 / 2;
 }
 
 /* Between switching the camera on and the first frame arriving there is nothing worth
@@ -33,9 +36,7 @@
   }
 
   /* Keep the camera picture inside its corner box whatever resolution the camera gives */
-  .scanner-cam video,
   .scanner-cam canvas {
-    width: 100%;
     height: auto;
   }
   
@@ -145,11 +146,14 @@ button.more-options-button:focus-visible {
 
 /* The camera picture is always blurred. Scaled up a little because a CSS blur goes
    transparent at the edges, which would otherwise show as a soft frame. */
+/* Only the part of the frame worth looking at is shown. placeOverlay sizes and offsets
+   the video so the card target and its border fill the box; the rest hangs outside and is
+   clipped. The blurred edges of the picture fall outside too, which is what the old
+   scale(1.08) was for. */
 .scanner-cam video {
   display: block;
-  width: 100%;
+  position: absolute;
   height: auto;
-  transform: scale(1.08);
 }
 
 /* The card-shaped target the member holds their card against */
@@ -508,14 +512,19 @@ button.more-options-button:focus-visible {
     padding-top: 130px;
   }
 
-  .camera-switch {
-    top: 10px;
-    left: 62px;
-  }
-
   /* A smaller badge, to buy back the height the preview needs */
   #page img {
     height: 3rem;
+  }
+}
+
+/* Stacked, the two camera buttons reach 106px down. On a phone that is over the preview
+   and costs nothing, but in this band the preview is still off to one side and the page
+   starts below them, so it has to start lower. The switch button only exists while the
+   camera is on, which is why this is the only case that pays for it. */
+@media (min-width: 820px) and (max-width: 899px) {
+  body.camera-on #page {
+    padding-top: 116px;
   }
 }
 
@@ -527,7 +536,7 @@ button.more-options-button:focus-visible {
    attention is anyway. Nothing has to be reserved around it and nothing can land on it. */
 @media (max-width: 819px) {
   .scanner-cam {
-    position: static;
+    position: relative;   /* In the flow, but still what the video is positioned against */
     width: auto;
     margin: 0 auto 12px;
   }
@@ -673,7 +682,7 @@ button.more-options-button:focus-visible {
   margin: 0 auto;
 }
 
-.keypad__key {
+button.keypad__key {
   height: 52px;
   border: 1px solid #d1d5db;
   border-radius: 8px;
@@ -686,22 +695,22 @@ button.more-options-button:focus-visible {
   user-select: none;
 }
 
-.keypad__key:active {
+button.keypad__key:active {
   background: #e5e7eb;
 }
 
-.keypad__key--back {
+button.keypad__key--back {
   font-size: 20px;
 }
 
-.keypad__key--go {
+button.keypad__key--go {
   background: #1e3a8a;
   border-color: #1e3a8a;
   color: #fff;
   font-size: 15px;
 }
 
-.keypad__key--go:active {
+button.keypad__key--go:active {
   background: #1d4ed8;
 }
 
@@ -717,22 +726,22 @@ button.more-options-button:focus-visible {
     max-width: none;
   }
 
-  .keypad__key--back {
+  button.keypad__key--back {
     grid-column: 6;
     grid-row: 1;
   }
 
-  .keypad__key--go {
+  button.keypad__key--go {
     grid-column: 6;
     grid-row: 2;
   }
 
-  .keypad__key {
+  button.keypad__key {
     height: 42px;
     font-size: 19px;
   }
 
-  .keypad__key--go {
+  button.keypad__key--go {
     font-size: 14px;
   }
 }
@@ -741,6 +750,12 @@ button.more-options-button:focus-visible {
    into is never one of the things hidden underneath. */
 body.keypad-open #page {
   padding-bottom: 270px;
+}
+
+/* The keypad has a Sign in of its own, so the one in the card is a duplicate while it
+   is up - and the room it gives back is room the keypad needs. */
+body.keypad-open .sign-in-action {
+  display: none;
 }
 
 @media (orientation: landscape) and (max-height: 520px) {

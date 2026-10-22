@@ -17,6 +17,7 @@ window.cameraHeight = 720;
 window.cameraWorkWidth = 1000;      // Decode at this width whatever the camera gives
 window.cameraUpscaleBelow = 900;    // Frames narrower than this get scaled up to decode
 window.cameraBlurPx = 4;            // Strength of the privacy blur, outside the target zones
+window.cameraPreviewBorder = 0.03;  // Border shown around the card target, as a share of its width
 window.cameraCooldownMs = 2000;     // After a read: how long before the next, and how long
                                     // the number stays on screen. The two are the same thing.
 window.cameraSameCardMs = 2000;     // How long a card must be out of sight before it reads again
@@ -366,13 +367,45 @@ function acceptScannedCode(code, source) {
 
 /* ================= The preview ================= */
 
-function placeOverlay(rect, vw, vh) {
+/* What of the camera frame is worth showing: the card target and a border around it,
+   rather than the whole frame. A phone hands over a tall portrait picture with the card a
+   landscape strip across the middle; showing all of that wastes most of the screen on
+   ceiling and floor, and takes so much height that the form below is pushed off. A webcam
+   hands over something too wide for the same reason.
+
+   The border is a fixed share of the card rather than whatever each frame happens to have
+   going spare, so the preview is the same shape on every camera. The target is always the
+   card's own proportions, so a proportional border makes the crop a constant shape too.
+   What a frame cannot supply is all it gives: the crop stops short of the frame edge,
+   where a CSS blur goes transparent, and on a 16:9 camera that leaves barely more than
+   this - which is what sets the default. */
+function previewCrop(rect, vw, vh) {
+    var edge = Math.max(4, window.cameraBlurPx * 2);
+    var room = Math.min(rect.x, rect.y, vw - rect.x - rect.w, vh - rect.y - rect.h) - edge;
+    var margin = Math.max(0, Math.min(rect.w * window.cameraPreviewBorder, room));
+    return {
+        x: rect.x - margin,
+        y: rect.y - margin,
+        w: rect.w + margin * 2,
+        h: rect.h + margin * 2
+    };
+}
+
+/* The video is laid out against the crop rather than the host, so the cropped-away part
+   hangs outside the host and is clipped by its overflow. Everything else is placed in the
+   same terms, which keeps the target boxes over the things they are pointing at. */
+function placeOverlay(rect, crop, vw, vh) {
+    if (cameraVideo) {
+        cameraVideo.style.width = (vw / crop.w * 100) + "%";
+        cameraVideo.style.left = (-crop.x / crop.w * 100) + "%";
+        cameraVideo.style.top = (-crop.y / crop.h * 100) + "%";
+    }
     var parts = [cameraGuide, cameraWork, cameraZones], i;
     for (i = 0; i < parts.length; i++) {
-        parts[i].style.left = (rect.x / vw * 100) + "%";
-        parts[i].style.top = (rect.y / vh * 100) + "%";
-        parts[i].style.width = (rect.w / vw * 100) + "%";
-        parts[i].style.height = (rect.h / vh * 100) + "%";
+        parts[i].style.left = ((rect.x - crop.x) / crop.w * 100) + "%";
+        parts[i].style.top = ((rect.y - crop.y) / crop.h * 100) + "%";
+        parts[i].style.width = (rect.w / crop.w * 100) + "%";
+        parts[i].style.height = (rect.h / crop.h * 100) + "%";
     }
 }
 
@@ -398,17 +431,18 @@ function cameraPass() {
     var workH = Math.round(workW / CARD_ASPECT);
     if (cameraWork.width !== workW) { cameraWork.width = workW; cameraWork.height = workH; }
     cameraWorkCtx.drawImage(cameraVideo, rect.x, rect.y, rect.w, rect.h, 0, 0, workW, workH);
-    placeOverlay(rect, vw, vh);
+    var crop = previewCrop(rect, vw, vh);
+    placeOverlay(rect, crop, vw, vh);
 
     if (!cameraShown && cameraHost) {   // Sized from a real frame now, so it can be seen
         cameraShown = true;
         /* The frame dimensions are fixed for the life of the stream, so pinning the box
            to them here means it is the right shape the moment it appears and never
            changes shape afterwards. */
-        cameraHost.style.aspectRatio = vw + " / " + vh;
+        cameraHost.style.aspectRatio = crop.w + " / " + crop.h;
         /* Handed to the stylesheet so it can work back from a height it can spare to the
            width that produces it. Only the frame knows the shape; only CSS knows the room. */
-        cameraHost.style.setProperty("--cam-aspect", (vw / vh).toFixed(4));
+        cameraHost.style.setProperty("--cam-aspect", (crop.w / crop.h).toFixed(4));
         cameraHost.style.visibility = "";
         cameraHost.style.opacity = "";
     }
