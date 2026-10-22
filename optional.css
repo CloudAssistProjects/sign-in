@@ -3,6 +3,21 @@
     cursor:pointer;
 }
 
+/* ---- What sits in front of what ----
+
+   20  the camera preview
+   30  the buttons floating over it - camera, switch, More Options, send
+   40  the on-screen keypad
+   50  modals, which cover the lot
+
+   These were picked one at a time before, and the preview ended up at 99: in front of the
+   menu button, and in front of the modals' own dimmed backdrops. Every modal carries
+   role="dialog" and is marked z-10 by Tailwind, so naming the element outranks that
+   without having to touch the markup. */
+div[role="dialog"] {
+  z-index: 50;
+}
+
 .scanner-cam {
   /* The same inset on both sides, so it sits squarely in the corner. It used to be held
      70px up to clear the buttons that once ran along the bottom; they are in the opposite
@@ -15,7 +30,7 @@
   position: fixed;
   bottom: 0;
   right: 0;
-  z-index: 99;
+  z-index: 20;
   overflow: hidden;
   border-radius: 17px;
   transform: scale(-1, 1);
@@ -82,7 +97,7 @@ button.more-options-button {
   position: fixed;
   bottom: 14px;
   left: 14px;
-  z-index: 5;
+  z-index: 30;
   /* The two share a width so they read as one stack rather than two stray buttons. 280px
      is where the send button's wording fills two lines and keeps filling them all the way
      up to "999 Pending Records"; it goes to three below about 250px, and the second line
@@ -111,13 +126,13 @@ button.more-options-button:focus-visible {
 }
 
 /* The floating "send pending records" button, stacked directly above More Options. Both
-   sit in the lower left, clear of the camera feed, and below the z-index of the modals so
-   that they go under their dimmed backdrop. */
+   sit in the lower left, clear of the camera feed, and below the modals so that they go
+   under their dimmed backdrop. */
 .pending-button {
   position: fixed;
   bottom: 64px;
   left: 14px;
-  z-index: 5;
+  z-index: 30;
   width: 280px;
   max-width: calc(100vw - 28px);
   text-align: center;
@@ -154,6 +169,11 @@ button.more-options-button:focus-visible {
   display: block;
   position: absolute;
   height: auto;
+  /* Cropping means showing the frame larger than the box it is seen through - 120% of it
+     for a 16:9 camera. Tailwind's reset caps every video at max-width:100%, which would
+     hold the picture to the width of the box while the offsets went on shifting it, so
+     the sharp windows would show one part of the scene and the blur around them another. */
+  max-width: none;
 }
 
 /* The card-shaped target the member holds their card against */
@@ -263,7 +283,7 @@ button.more-options-button:focus-visible {
   position: fixed;
   top: 10px;
   left: 10px;
-  z-index: 100;
+  z-index: 30;
   width: 44px;
   height: 44px;
   display: flex;
@@ -398,7 +418,7 @@ button.more-options-button:focus-visible {
   position: fixed;
   top: 62px;
   left: 10px;
-  z-index: 100;
+  z-index: 30;
   width: 44px;
   height: 44px;
   display: flex;
@@ -662,7 +682,7 @@ button.more-options-button:focus-visible {
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 101;
+  z-index: 40;
   padding: 8px;
   background: #f3f4f6;
   border-top: 1px solid #d1d5db;

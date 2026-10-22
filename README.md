@@ -82,6 +82,8 @@ Presenting the same card again after that does read a second time, on purpose. S
 
 The sign-in card is a fixed 448px in the middle of the window, so how much room is left beside it for the camera preview is simply (window - 448) / 2. The preview is given exactly that, less margins, capped at 430px - said as a calculation rather than as a set of breakpoint widths, so there is no window width at which it is suddenly sitting on the Sign in button.
 
+What sits in front of what: the preview at 20, the buttons floating over it at 30, the keypad at 40, and modals at 50 above the lot. They had been picked one at a time, leaving the preview in front of the menu button and in front of the modals' own backdrops.
+
 The two camera buttons sit stacked in the top left corner at every size, the switch below the on/off toggle, and the switch is only there at all while the camera is running.
 
 Below 900px the card takes the whole width and there is nothing beside it. More Options collapses to a menu icon in the top right, opposite the camera buttons, and the send button tucks underneath it. A tablet held in landscape with the pixels to spare keeps the full layout; stood upright it gets the compact one.
